@@ -17,7 +17,10 @@
       <span class="brand-logo">M</span>
       <span class="brand-name">Medivra</span>
     </div>
-    <span class="topbar-tagline">People &amp; Culture Platform</span>
+    <div class="topbar-actions">
+      <span class="topbar-tagline">People &amp; Culture Platform</span>
+      <a class="logout-link" href="{{ url_for('logout') }}">Logout</a>
+    </div>
   </nav>
 
   <main class="page">
@@ -26,6 +29,122 @@
       <h1>Employee Desk</h1>
       <p class="subtitle">Search employee details by ID and add new employee records in one place.</p>
     </header>
+
+    <section class="overview-grid">
+      <article class="overview-card stat-card">
+        <span class="overview-label">Total Employees</span>
+        <strong id="stat-total-employees" class="overview-value">0</strong>
+        <p class="overview-note">Current visible workforce records</p>
+      </article>
+
+      <article class="overview-card stat-card">
+        <span class="overview-label">Departments</span>
+        <strong id="stat-total-departments" class="overview-value">0</strong>
+        <p class="overview-note">Unique teams represented</p>
+      </article>
+
+      <article class="overview-card stat-card">
+        <span class="overview-label">Average Salary</span>
+        <strong id="stat-average-salary" class="overview-value">0</strong>
+        <p class="overview-note">Calculated from visible records</p>
+      </article>
+
+      <article class="overview-card stat-card">
+        <span class="overview-label">Top Manager Load</span>
+        <strong id="stat-manager-load" class="overview-value">0</strong>
+        <p id="stat-manager-note" class="overview-note">Waiting for workforce data</p>
+      </article>
+    </section>
+
+    <section class="ai-panel panel">
+      <div class="ai-panel-header">
+        <div>
+          <p class="eyebrow ai-eyebrow">AI Workforce Assistant</p>
+          <h2>Smart guidance from your employee data</h2>
+        </div>
+        <div class="ai-panel-actions">
+          <span class="ai-badge">Live Insights</span>
+          <select id="assistant-mode" class="assistant-mode-select" aria-label="Assistant mode">
+            <option value="data">Data Assistant</option>
+            <option value="gemini">Gemini Chat</option>
+          </select>
+          <button id="export-ai-summary-button" type="button" class="ai-action-button">Export Summary</button>
+        </div>
+      </div>
+      <p id="assistant-mode-note" class="assistant-mode-note">Data Assistant mode uses records from this page.</p>
+
+      <div class="ai-command-bar">
+        <input id="ai-query-input" type="text" placeholder="Ask: show engineering team, salary above 80000, salary between 50000 and 90000, manager Sarah, location Hyderabad">
+        <button id="voice-input-button" type="button" class="ai-action-button" title="Use microphone">Voice</button>
+        <button id="run-ai-query-button" type="button">Run AI Search</button>
+        <button id="reset-ai-query-button" type="button" class="button-secondary">Reset</button>
+      </div>
+      <p id="voice-shortcut-hint" class="voice-shortcut-hint">Shortcut: focus this input and hold Ctrl + Space to talk.</p>
+
+      <div class="ai-chip-row">
+        <button type="button" class="ai-chip" data-ai-prompt="show engineering team">Engineering Team</button>
+        <button type="button" class="ai-chip" data-ai-prompt="high salary employees">High Salary</button>
+        <button type="button" class="ai-chip" data-ai-prompt="salary above 80000">Salary Above 80000</button>
+        <button type="button" class="ai-chip" data-ai-prompt="manager Sarah Smith">Manager Sarah</button>
+        <button type="button" class="ai-chip" data-ai-prompt="location Hyderabad">Hyderabad</button>
+        <button type="button" class="ai-chip" data-ai-prompt="show all employees">Show All</button>
+      </div>
+
+      <div class="agent-console">
+        <div class="agent-console-header">
+          <div class="agent-bot-pill">
+            <span class="agent-bot-dot"></span>
+            <span>Medivra AI Bot</span>
+          </div>
+          <div class="agent-header-actions">
+            <button id="voice-reply-toggle" type="button" class="agent-voice-toggle" aria-pressed="true">Voice Replies: On</button>
+            <span id="agent-status" class="agent-status">Online</span>
+          </div>
+        </div>
+        <div id="agent-chat-log" class="agent-chat-log" aria-live="polite">
+          <article class="agent-message assistant">
+            <p class="agent-role">Medivra Agent</p>
+            <p>Ask me things like "engineering salary above 80000" or "manager Sarah in Hyderabad" and I will adjust filters, sorting, and insights.</p>
+          </article>
+        </div>
+        <p id="agent-typing" class="agent-typing hidden">Medivra AI Bot is thinking...</p>
+        <div id="agent-followups" class="agent-followups hidden"></div>
+      </div>
+
+      <div class="ai-panel-grid">
+        <article class="ai-summary-card">
+          <h3>Summary</h3>
+          <p id="ai-summary-text" class="ai-summary-text">Insights will appear once employee data loads.</p>
+        </article>
+        <article class="ai-summary-card">
+          <h3>Suggested Actions</h3>
+          <ul id="ai-action-list" class="ai-action-list">
+            <li>Loading recommendations...</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="ai-visual-grid">
+        <article class="ai-summary-card">
+          <div class="chart-card-header">
+            <h3>Department Mix</h3>
+            <button id="export-department-chart-button" type="button" class="ai-action-button">Export PNG</button>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="department-chart" class="chart-canvas"></canvas>
+          </div>
+        </article>
+        <article class="ai-summary-card">
+          <div class="chart-card-header">
+            <h3>Manager Coverage</h3>
+            <button id="export-manager-chart-button" type="button" class="ai-action-button">Export PNG</button>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="manager-chart" class="chart-canvas"></canvas>
+          </div>
+        </article>
+      </div>
+    </section>
 
     <section class="grid">
       <article class="panel search-panel">
@@ -131,6 +250,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

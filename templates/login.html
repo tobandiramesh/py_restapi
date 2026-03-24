@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medivra Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="login-page">
+  <div class="login-watermark" aria-hidden="true">Medivra</div>
+  <div class="login-glow"></div>
+  <div class="login-glow login-glow-secondary"></div>
+
+  <main class="login-shell">
+    <section class="login-intro">
+      <p class="eyebrow login-kicker">Medivra Workforce Portal</p>
+      <h1>Secure access to your employee operations hub.</h1>
+      <p class="subtitle login-intro-copy">Manage records, search employee details, and keep people data organized in one place.</p>
+
+      <div class="login-feature-list">
+        <div class="login-feature-item">
+          <span class="login-feature-dot"></span>
+          <div>
+            <strong>Fast employee lookup</strong>
+            <p>Search by employee ID and review complete profile details instantly.</p>
+          </div>
+        </div>
+        <div class="login-feature-item">
+          <span class="login-feature-dot"></span>
+          <div>
+            <strong>Unified employee desk</strong>
+            <p>Create, edit, view, sort, and manage records from a single workspace.</p>
+          </div>
+        </div>
+        <div class="login-feature-item">
+          <span class="login-feature-dot"></span>
+          <div>
+            <strong>Medivra-ready experience</strong>
+            <p>Designed for clarity with secure entry before accessing the dashboard.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="login-card">
+      <div class="login-card-header">
+        <div class="login-brand-chip">
+          <span class="brand-logo">M</span>
+          <span>Medivra</span>
+        </div>
+        <p class="eyebrow">Welcome Back</p>
+        <h2>Secure Employee Access</h2>
+        <p class="subtitle">Sign in to continue to Employee Desk.</p>
+      </div>
+
+      <form method="post" class="stack login-form">
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" placeholder="Enter username" required>
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" placeholder="Enter password" required>
+
+        <button type="submit" class="full login-submit">Login</button>
+      </form>
+
+      {% if error_message %}
+      <p class="message error login-error">{{ error_message }}</p>
+      {% endif %}
+
+      <div class="demo-credentials">
+        <strong>Demo Credentials</strong>
+        <p>Username: {{ demo_username }}</p>
+        <p>Password: {{ demo_password }}</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
