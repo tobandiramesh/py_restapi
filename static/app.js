@@ -52,6 +52,17 @@ const voiceReplyToggle = document.getElementById('voice-reply-toggle');
 const voiceShortcutHint = document.getElementById('voice-shortcut-hint');
 const departmentChartCanvas = document.getElementById('department-chart');
 const managerChartCanvas = document.getElementById('manager-chart');
+const assistantFab = document.getElementById('assistant-fab');
+const floatingAssistant = document.getElementById('floating-assistant');
+const floatingAssistantHeader = document.getElementById('floating-assistant-header');
+const floatingAssistantForm = document.getElementById('floating-assistant-form');
+const floatingAssistantInput = document.getElementById('floating-assistant-input');
+const floatingAssistantLog = document.getElementById('floating-assistant-log');
+const floatingAssistantProvider = document.getElementById('floating-assistant-provider');
+const floatingAssistantProviderNote = document.getElementById('floating-assistant-provider-note');
+const floatingAssistantStatusBadge = document.getElementById('floating-assistant-status-badge');
+const floatingAssistantOpenButton = document.getElementById('floating-assistant-open');
+const floatingAssistantMinimizeButton = document.getElementById('floating-assistant-minimize');
 
 let editingEmployeeId = null;
 let allEmployees = [];
@@ -70,8 +81,43 @@ let speechRecognitionInstance = null;
 let isVoiceListening = false;
 let voiceRepliesEnabled = true;
 let voiceShortcutActive = false;
+let floatingAssistantDragState = null;
+let floatingAssistantStatusRequestId = 0;
 
 const PAGE_SIZE = 5;
+const FLOATING_ASSISTANT_POSITION_KEY = 'medivra-floating-assistant-position';
+const FLOATING_ASSISTANT_OPEN_KEY = 'medivra-floating-assistant-open';
+const FLOATING_ASSISTANT_PROVIDERS = {
+  local: {
+    name: 'Local Medivra',
+    note: 'Local Medivra assistant replies inside this widget using the app backend.',
+  },
+  github: {
+    name: 'GitHub Copilot (API)',
+    note: 'Replies inside this widget using your GitHub token (GITHUB_TOKEN) on the server.',
+  },
+  chatgpt: {
+    name: 'ChatGPT',
+    note: 'Opens ChatGPT in a new tab. The prompt is copied so you can paste it immediately.',
+    url: 'https://chatgpt.com/',
+  },
+  gemini: {
+    name: 'Gemini',
+    note: 'Opens Gemini in a new tab. The prompt is copied so you can paste it immediately.',
+    url: 'https://gemini.google.com/app',
+  },
+  claude: {
+    name: 'Claude',
+    note: 'Opens Claude in a new tab. The prompt is copied so you can paste it immediately.',
+    url: 'https://claude.ai/new',
+  },
+  perplexity: {
+    name: 'Perplexity',
+    note: 'Opens Perplexity in a new tab and passes the prompt when supported.',
+    url: 'https://www.perplexity.ai/search/new',
+    queryParam: 'q',
+  },
+};
 
 function showToast(message, isError = false) {
   const toast = document.createElement('div');
@@ -420,11 +466,11 @@ function updateAssistantModeUI() {
   }
 }
 
-async function askLocalAssistant(prompt) {
+async function askLocalAssistant(prompt, provider = 'local') {
   const response = await fetch('/api/ai/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ prompt, provider }),
   });
 
   const result = await response.json();
@@ -433,6 +479,324 @@ async function askLocalAssistant(prompt) {
   }
 
   return result.data || {};
+}
+
+function getFloatingAssistantProviderConfig() {
+  return FLOATING_ASSISTANT_PROVIDERS[floatingAssistantProvider?.value] || FLOATING_ASSISTANT_PROVIDERS.local;
+}
+
+async function fetchFloatingAssistantStatus(providerKey) {
+  const response = await fetch(`/api/ai/status?provider=${encodeURIComponent(providerKey)}`);
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.message || 'Unable to load provider status.');
+  }
+
+  return result.data || {};
+}
+
+function renderFloatingAssistantStatusBadge(statusData) {
+  if (!floatingAssistantStatusBadge) {
+    return;
+  }
+
+  const normalizedState = statusData?.state || 'checking';
+  floatingAssistantStatusBadge.textContent = statusData?.label || 'Checking...';
+  floatingAssistantStatusBadge.className = `floating-assistant-status-badge is-${normalizedState}`;
+  floatingAssistantStatusBadge.title = statusData?.message || '';
+}
+
+async function refreshFloatingAssistantStatus() {
+  const requestId = ++floatingAssistantStatusRequestId;
+  const providerKey = floatingAssistantProvider?.value || 'local';
+
+  renderFloatingAssistantStatusBadge({
+    state: 'checking',
+    label: 'Checking...',
+    message: 'Checking provider availability.',
+  });
+
+  try {
+    const statusData = await fetchFloatingAssistantStatus(providerKey);
+    if (requestId !== floatingAssistantStatusRequestId) {
+      return;
+    }
+    renderFloatingAssistantStatusBadge(statusData);
+  } catch (error) {
+    if (requestId !== floatingAssistantStatusRequestId) {
+      return;
+    }
+    renderFloatingAssistantStatusBadge({
+      state: 'error',
+      label: 'Error',
+      message: error.message || 'Unable to load provider status.',
+    });
+  }
+}
+
+function appendFloatingAssistantMessage(role, text) {
+  if (!floatingAssistantLog || !text) {
+    return;
+  }
+
+  const message = document.createElement('article');
+  message.className = `agent-message ${role}`;
+  message.innerHTML = `
+    <p class="agent-role">${role === 'assistant' ? 'AI Help' : 'You'}</p>
+    <p>${text}</p>
+  `;
+
+  floatingAssistantLog.appendChild(message);
+  floatingAssistantLog.scrollTop = floatingAssistantLog.scrollHeight;
+
+  if (role === 'assistant') {
+    speakAssistantReply(text);
+  }
+}
+
+function setFloatingAssistantOpen(isOpen) {
+  if (!floatingAssistant || !assistantFab) {
+    return;
+  }
+
+  floatingAssistant.classList.toggle('hidden', !isOpen);
+  assistantFab.classList.toggle('hidden', isOpen);
+  assistantFab.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  window.localStorage.setItem(FLOATING_ASSISTANT_OPEN_KEY, isOpen ? 'open' : 'closed');
+}
+
+function clampFloatingAssistantPosition(left, top) {
+  const width = floatingAssistant?.offsetWidth || 0;
+  const height = floatingAssistant?.offsetHeight || 0;
+  const maxLeft = Math.max(16, window.innerWidth - width - 16);
+  const maxTop = Math.max(16, window.innerHeight - height - 16);
+
+  return {
+    left: Math.min(Math.max(16, left), maxLeft),
+    top: Math.min(Math.max(16, top), maxTop),
+  };
+}
+
+function saveFloatingAssistantPosition(left, top) {
+  window.localStorage.setItem(FLOATING_ASSISTANT_POSITION_KEY, JSON.stringify({ left, top }));
+}
+
+function applyFloatingAssistantPosition(left, top) {
+  if (!floatingAssistant) {
+    return;
+  }
+
+  const clampedPosition = clampFloatingAssistantPosition(left, top);
+  floatingAssistant.style.left = `${clampedPosition.left}px`;
+  floatingAssistant.style.top = `${clampedPosition.top}px`;
+  floatingAssistant.style.right = 'auto';
+  floatingAssistant.style.bottom = 'auto';
+  saveFloatingAssistantPosition(clampedPosition.left, clampedPosition.top);
+}
+
+function restoreFloatingAssistantPosition() {
+  if (!floatingAssistant) {
+    return;
+  }
+
+  const rawPosition = window.localStorage.getItem(FLOATING_ASSISTANT_POSITION_KEY);
+  if (!rawPosition) {
+    return;
+  }
+
+  try {
+    const parsedPosition = JSON.parse(rawPosition);
+    if (typeof parsedPosition.left === 'number' && typeof parsedPosition.top === 'number') {
+      applyFloatingAssistantPosition(parsedPosition.left, parsedPosition.top);
+    }
+  } catch (_error) {
+    window.localStorage.removeItem(FLOATING_ASSISTANT_POSITION_KEY);
+  }
+}
+
+async function copyPromptToClipboard(prompt) {
+  if (!prompt || !navigator.clipboard?.writeText) {
+    return false;
+  }
+
+  try {
+    await navigator.clipboard.writeText(prompt);
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function openExternalAssistant(providerKey, prompt) {
+  const providerConfig = FLOATING_ASSISTANT_PROVIDERS[providerKey];
+  if (!providerConfig?.url) {
+    showToast('Selected provider is not available.', true);
+    return;
+  }
+
+  const destination = new URL(providerConfig.url);
+  const trimmedPrompt = (prompt || '').trim();
+
+  if (trimmedPrompt && providerConfig.queryParam) {
+    destination.searchParams.set(providerConfig.queryParam, trimmedPrompt);
+  }
+
+  const copied = await copyPromptToClipboard(trimmedPrompt);
+  window.open(destination.toString(), '_blank', 'noopener,noreferrer');
+
+  appendFloatingAssistantMessage(
+    'assistant',
+    trimmedPrompt
+      ? `Opened ${providerConfig.name}.${copied ? ' Your prompt was copied to the clipboard.' : ' Paste your prompt into the new tab.'}`
+      : `Opened ${providerConfig.name} in a new tab.`
+  );
+  showToast(`Opened ${providerConfig.name}.`);
+}
+
+function updateFloatingAssistantUI() {
+  const providerConfig = getFloatingAssistantProviderConfig();
+
+  if (floatingAssistantProviderNote) {
+    floatingAssistantProviderNote.textContent = providerConfig.note;
+  }
+
+  if (floatingAssistantOpenButton) {
+    const selectedProvider = floatingAssistantProvider?.value || 'local';
+    const opensExternally = Boolean(FLOATING_ASSISTANT_PROVIDERS[selectedProvider]?.url);
+    floatingAssistantOpenButton.disabled = !opensExternally;
+    floatingAssistantOpenButton.textContent = opensExternally ? 'Open Bot' : 'In-App Active';
+  }
+}
+
+function handleFloatingAssistantDragStart(event) {
+  if (!floatingAssistant || event.target.closest('button, select, textarea, input')) {
+    return;
+  }
+
+  const rect = floatingAssistant.getBoundingClientRect();
+  floatingAssistantDragState = {
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top,
+  };
+  floatingAssistant.classList.add('dragging');
+}
+
+function handleFloatingAssistantDragMove(event) {
+  if (!floatingAssistantDragState) {
+    return;
+  }
+
+  applyFloatingAssistantPosition(
+    event.clientX - floatingAssistantDragState.offsetX,
+    event.clientY - floatingAssistantDragState.offsetY,
+  );
+}
+
+function handleFloatingAssistantDragEnd() {
+  if (!floatingAssistantDragState || !floatingAssistant) {
+    return;
+  }
+
+  floatingAssistantDragState = null;
+  floatingAssistant.classList.remove('dragging');
+}
+
+async function submitFloatingAssistantPrompt() {
+  const providerKey = floatingAssistantProvider?.value || 'local';
+  const prompt = floatingAssistantInput?.value.trim() || '';
+
+  if (!prompt) {
+    showToast('Enter a prompt for the assistant first.', true);
+    return;
+  }
+
+  appendFloatingAssistantMessage('user', prompt);
+
+  if (providerKey === 'local' || providerKey === 'github') {
+    try {
+      const result = await askLocalAssistant(prompt, providerKey);
+      appendFloatingAssistantMessage('assistant', result.reply || 'Assistant returned no response.');
+      showToast(`${result.provider || 'assistant'} replied using ${result.model || 'configured model'}.`);
+    } catch (error) {
+      appendFloatingAssistantMessage('assistant', error.message || 'Assistant is unavailable right now.');
+      showToast(error.message || 'Assistant is unavailable right now.', true);
+    }
+  } else {
+    await openExternalAssistant(providerKey, prompt);
+  }
+
+  floatingAssistantInput.value = '';
+}
+
+function setupFloatingAssistant() {
+  if (!floatingAssistant || !assistantFab) {
+    return;
+  }
+
+  const savedState = window.localStorage.getItem(FLOATING_ASSISTANT_OPEN_KEY);
+  const shouldOpen = savedState !== 'closed';
+
+  restoreFloatingAssistantPosition();
+  updateFloatingAssistantUI();
+  setFloatingAssistantOpen(shouldOpen);
+
+  floatingAssistantHeader?.addEventListener('mousedown', handleFloatingAssistantDragStart);
+  document.addEventListener('mousemove', handleFloatingAssistantDragMove);
+  document.addEventListener('mouseup', handleFloatingAssistantDragEnd);
+
+  window.addEventListener('resize', () => {
+    if (!floatingAssistant.style.left || !floatingAssistant.style.top) {
+      return;
+    }
+
+    const currentLeft = Number.parseFloat(floatingAssistant.style.left);
+    const currentTop = Number.parseFloat(floatingAssistant.style.top);
+    if (!Number.isNaN(currentLeft) && !Number.isNaN(currentTop)) {
+      applyFloatingAssistantPosition(currentLeft, currentTop);
+    }
+  });
+
+  assistantFab.addEventListener('click', () => {
+    setFloatingAssistantOpen(true);
+    floatingAssistantInput?.focus();
+  });
+
+  floatingAssistantMinimizeButton?.addEventListener('click', () => {
+    setFloatingAssistantOpen(false);
+  });
+
+  floatingAssistantProvider?.addEventListener('change', () => {
+    const providerConfig = getFloatingAssistantProviderConfig();
+    updateFloatingAssistantUI();
+    refreshFloatingAssistantStatus();
+    appendFloatingAssistantMessage('assistant', `Switched to ${providerConfig.name}. ${providerConfig.note}`);
+  });
+
+  floatingAssistantForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await submitFloatingAssistantPrompt();
+  });
+
+  floatingAssistantOpenButton?.addEventListener('click', async () => {
+    await openExternalAssistant(
+      floatingAssistantProvider?.value || 'local',
+      floatingAssistantInput?.value.trim() || '',
+    );
+  });
+
+  document.querySelectorAll('[data-floating-prompt]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      if (!floatingAssistantInput) {
+        return;
+      }
+
+      floatingAssistantInput.value = button.dataset.floatingPrompt || '';
+      await submitFloatingAssistantPrompt();
+    });
+  });
+
+  refreshFloatingAssistantStatus();
 }
 
 function parseSalaryQuery(query) {
@@ -1241,4 +1605,5 @@ updateSortDirectionButton();
 updateVoiceReplyToggle();
 updateAssistantModeUI();
 setupVoiceFeatures();
+setupFloatingAssistant();
 loadEmployees();

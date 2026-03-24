@@ -252,6 +252,65 @@
     </div>
   </div>
 
+  <button id="assistant-fab" class="assistant-fab hidden" type="button" aria-controls="floating-assistant" aria-expanded="false">
+    <span class="assistant-fab-mark">AI</span>
+    <span>AI Help</span>
+  </button>
+
+  <aside id="floating-assistant" class="floating-assistant" aria-label="Floating AI assistant">
+    <div id="floating-assistant-header" class="floating-assistant-header">
+      <div>
+        <p class="floating-assistant-kicker">Floating Assistant</p>
+        <h2>AI Help</h2>
+      </div>
+      <div class="floating-assistant-window-actions">
+        <button id="floating-assistant-minimize" type="button" class="floating-assistant-icon-button" aria-label="Minimize assistant">_</button>
+      </div>
+    </div>
+
+    <div class="floating-assistant-body">
+      <div class="floating-assistant-toolbar">
+        <label class="floating-assistant-provider-label" for="floating-assistant-provider">Assistant</label>
+        <select id="floating-assistant-provider" class="floating-assistant-provider" aria-label="Choose chatbot provider">
+          <option value="local">Local Medivra</option>
+          <option value="github">GitHub Copilot (API)</option>
+          <option value="chatgpt">ChatGPT</option>
+          <option value="gemini">Gemini</option>
+          <option value="claude">Claude</option>
+          <option value="perplexity">Perplexity</option>
+        </select>
+      </div>
+
+      <div class="floating-assistant-status-row">
+        <span class="floating-assistant-status-label">Status</span>
+        <span id="floating-assistant-status-badge" class="floating-assistant-status-badge is-checking">Checking...</span>
+      </div>
+
+      <p id="floating-assistant-provider-note" class="floating-assistant-provider-note">Local Medivra assistant replies inside this widget.</p>
+
+      <div class="floating-assistant-suggestions">
+        <button type="button" class="floating-assistant-chip" data-floating-prompt="Summarize the current workforce">Summarize workforce</button>
+        <button type="button" class="floating-assistant-chip" data-floating-prompt="Which department looks understaffed?">Hiring guidance</button>
+        <button type="button" class="floating-assistant-chip" data-floating-prompt="Draft a polite employee update email">Draft email</button>
+      </div>
+
+      <div id="floating-assistant-log" class="floating-assistant-log" aria-live="polite">
+        <article class="agent-message assistant">
+          <p class="agent-role">AI Help</p>
+          <p>Use Local Medivra or GitHub Copilot (API) for in-app answers, or switch providers to open ChatGPT, Gemini, Claude, and Perplexity in a new tab.</p>
+        </article>
+      </div>
+
+      <form id="floating-assistant-form" class="floating-assistant-form">
+        <textarea id="floating-assistant-input" class="floating-assistant-input" rows="3" placeholder="Ask a question or write a prompt for any chatbot"></textarea>
+        <div class="floating-assistant-actions">
+          <button id="floating-assistant-send" type="submit">Send</button>
+          <button id="floating-assistant-open" type="button" class="button-secondary">Open Bot</button>
+        </div>
+      </form>
+    </div>
+  </aside>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>

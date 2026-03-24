@@ -1,16 +1,19 @@
 from collections import Counter
 from datetime import datetime
 from functools import wraps
+import json
 import os
 from pathlib import Path
 import re
 import sqlite3
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, render_template, redirect, session, url_for
 
 BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR / ".env", override=True)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "medivra-local-secret-key")
@@ -369,6 +372,134 @@ def query_local_chatbot(prompt):
     )
 
 
+def query_github_copilot(prompt):
+    token = (os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_MODELS_TOKEN") or "").strip()
+    if not token:
+        raise RuntimeError("GitHub token not configured. Set GITHUB_TOKEN in .env to use GitHub Copilot mode.")
+
+    base_url = (os.environ.get("GITHUB_MODELS_BASE_URL") or "https://models.inference.ai.azure.com").strip().rstrip("/")
+    model = (os.environ.get("GITHUB_COPILOT_MODEL") or os.environ.get("GITHUB_MODEL") or "gpt-4o-mini").strip()
+
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are Medivra AI assistant. Provide concise and practical answers for HR and workforce workflows.",
+            },
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.4,
+        "max_tokens": 700,
+    }
+
+    request_body = json.dumps(payload).encode("utf-8")
+    request_obj = urllib_request.Request(
+        url=f"{base_url}/chat/completions",
+        data=request_body,
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+            "User-Agent": "medivra-ai-client/1.0",
+        },
+    )
+
+    try:
+        with urllib_request.urlopen(request_obj, timeout=45) as response:
+            response_payload = json.loads(response.read().decode("utf-8"))
+    except urllib_error.HTTPError as exc:
+        try:
+            details = exc.read().decode("utf-8")
+        except Exception:
+            details = str(exc)
+        raise RuntimeError(f"GitHub Copilot request failed ({exc.code}). {details}") from exc
+    except Exception as exc:
+        raise RuntimeError(f"GitHub Copilot request failed. {exc}") from exc
+
+    choices = response_payload.get("choices") or []
+    if not choices:
+        raise RuntimeError("GitHub Copilot returned an empty response.")
+
+    message = choices[0].get("message") or {}
+    content = message.get("content")
+
+    if isinstance(content, list):
+        text_parts = [
+            part.get("text", "")
+            for part in content
+            if isinstance(part, dict) and part.get("type") == "text"
+        ]
+        reply = "\n".join(part for part in text_parts if part).strip()
+    else:
+        reply = str(content or "").strip()
+
+    if not reply:
+        raise RuntimeError("GitHub Copilot returned no text reply.")
+
+    return {
+        "reply": reply,
+        "model": response_payload.get("model") or model,
+        "provider": "github-copilot",
+    }
+
+
+def get_github_copilot_status():
+    token = (os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_MODELS_TOKEN") or "").strip()
+    if not token:
+        return {
+            "state": "setup-required",
+            "label": "Setup Required",
+            "message": "Set GITHUB_TOKEN in .env to enable GitHub Copilot mode.",
+        }
+
+    base_url = (os.environ.get("GITHUB_MODELS_BASE_URL") or "https://models.inference.ai.azure.com").strip().rstrip("/")
+    model = (os.environ.get("GITHUB_COPILOT_MODEL") or os.environ.get("GITHUB_MODEL") or "gpt-4o-mini").strip()
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "user", "content": "ping"},
+        ],
+        "temperature": 0,
+        "max_tokens": 1,
+    }
+
+    request_obj = urllib_request.Request(
+        url=f"{base_url}/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+            "User-Agent": "medivra-ai-client/1.0",
+        },
+    )
+
+    try:
+        with urllib_request.urlopen(request_obj, timeout=12):
+            return {
+                "state": "ready",
+                "label": "Ready",
+                "message": f"GitHub Copilot is reachable with model {model}.",
+            }
+    except urllib_error.HTTPError as exc:
+        try:
+            details = exc.read().decode("utf-8")
+        except Exception:
+            details = str(exc)
+        return {
+            "state": "error",
+            "label": "Error",
+            "message": f"GitHub Copilot check failed ({exc.code}). {details}",
+        }
+    except Exception as exc:
+        return {
+            "state": "error",
+            "label": "Error",
+            "message": f"GitHub Copilot check failed. {exc}",
+        }
+
+
 def validate_employee_payload(data, partial=False, current_emp_id=None):
     if not isinstance(data, dict):
         return None, "Request body must be valid JSON."
@@ -545,6 +676,7 @@ def get_employee_insights():
 def ai_chat():
     payload = request.get_json(silent=True) or {}
     prompt = (payload.get("prompt") or "").strip()
+    provider = (payload.get("provider") or "local").strip().lower()
 
     if not prompt:
         return jsonify({
@@ -553,15 +685,56 @@ def ai_chat():
             "timestamp": datetime.now().isoformat()
         }), 400
 
-    reply = query_local_chatbot(prompt)
+    try:
+        if provider in {"github", "copilot", "github-copilot"}:
+            result_data = query_github_copilot(prompt)
+        else:
+            result_data = {
+                "reply": query_local_chatbot(prompt),
+                "model": "local-medivra-assistant",
+                "provider": "local",
+            }
+    except RuntimeError as exc:
+        return jsonify({
+            "status": "error",
+            "message": str(exc),
+            "timestamp": datetime.now().isoformat()
+        }), 503
+
+    return jsonify({
+        "status": "success",
+        "data": result_data,
+        "timestamp": datetime.now().isoformat()
+    }), 200
+
+
+@app.route('/api/ai/status', methods=['GET'])
+@login_required
+def ai_status():
+    provider = (request.args.get("provider") or "local").strip().lower()
+
+    if provider in {"github", "copilot", "github-copilot"}:
+        status_data = get_github_copilot_status()
+    elif provider == "local":
+        status_data = {
+            "state": "ready",
+            "label": "Ready",
+            "message": "Local Medivra assistant is available inside this app.",
+        }
+    else:
+        status_data = {
+            "state": "external",
+            "label": "External",
+            "message": "This provider opens in a new tab and is not checked from inside the app.",
+        }
+
     return jsonify({
         "status": "success",
         "data": {
-            "reply": reply,
-            "model": "local-medivra-assistant",
-            "provider": "local",
+            "provider": provider,
+            **status_data,
         },
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }), 200
 
 

@@ -2,6 +2,11 @@
 
 A simple REST API application in Python using Flask that manages employee information.
 
+## Detailed Documentation
+
+- Full project execution steps, implementation details, architecture, and guidelines:
+  - `docs/PROJECT_EXECUTION_AND_IMPLEMENTATION_GUIDE.md`
+
 ## Features
 
 - Get employee details by ID
@@ -44,6 +49,11 @@ copy .env.example .env
 Then edit `.env` and set your preferred chat mode:
 ```env
 FLASK_SECRET_KEY=replace-with-a-local-secret
+
+# Optional: enable in-app GitHub Copilot (API) provider in floating AI assistant
+GITHUB_TOKEN=ghp_or_github_pat_here
+GITHUB_MODELS_BASE_URL=https://models.inference.ai.azure.com
+GITHUB_COPILOT_MODEL=gpt-4o-mini
 ```
 
 ## Running the Application
@@ -64,6 +74,15 @@ Web UI will be available at: `http://localhost:5000/`
 - View employee details in a dialog
 - Filter, sort, and paginate employee records
 - View employee details (id, salary, email, name, geo location, department, manager)
+- Floating AI assistant in the bottom-right corner with draggable chat window behavior
+- Switch between in-app Local Medivra and in-app GitHub Copilot (API) responses
+- Optional external chatbot handoff targets: ChatGPT, Gemini, Claude, and Perplexity
+
+### GitHub Copilot Mode Notes
+
+- In the floating assistant, choose `GitHub Copilot (API)` to get replies directly inside the app.
+- This mode uses your server-side `GITHUB_TOKEN` and calls the configured GitHub models endpoint.
+- If `GITHUB_TOKEN` is missing or invalid, the API returns a clear setup error.
 
 ## Data Storage
 
