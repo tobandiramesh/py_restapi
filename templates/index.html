@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employee Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="background-glow"></div>
+  <main class="page">
+    <header class="hero">
+      <p class="eyebrow">Employee Management</p>
+      <h1>Employee Desk</h1>
+      <p class="subtitle">Search employee details by ID and add new employee records in one place.</p>
+    </header>
+
+    <section class="grid">
+      <article class="panel search-panel">
+        <h2>Search by ID</h2>
+        <form id="search-form" class="stack">
+          <label for="emp-id">Employee ID</label>
+          <div class="row">
+            <input id="emp-id" name="emp-id" type="number" min="1" placeholder="e.g. 1" required>
+            <button type="submit">Search</button>
+          </div>
+        </form>
+        <div id="search-message" class="message" aria-live="polite"></div>
+        <div id="employee-card" class="employee-card hidden" aria-live="polite"></div>
+      </article>
+
+      <article class="panel add-panel">
+        <h2>Add Employee</h2>
+        <form id="add-form" class="stack">
+          <label for="name">Name</label>
+          <input id="name" name="name" type="text" placeholder="John Carter" required>
+
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" placeholder="john.carter@company.com" required>
+
+          <label for="salary">Salary</label>
+          <input id="salary" name="salary" type="number" min="0" step="1" placeholder="65000" required>
+
+          <label for="department">Department</label>
+          <input id="department" name="department" type="text" placeholder="Engineering" required>
+
+          <label for="manager">Manager</label>
+          <input id="manager" name="manager" type="text" placeholder="Sarah Smith" required>
+
+          <label for="geo-location">Geo Location</label>
+          <input id="geo-location" name="geo-location" type="text" placeholder="Hyderabad, India" required>
+
+          <button type="submit" class="full">Add Employee</button>
+        </form>
+        <div id="add-message" class="message" aria-live="polite"></div>
+      </article>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
