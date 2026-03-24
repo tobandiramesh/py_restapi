@@ -5,6 +5,7 @@ const addMessage = document.getElementById('add-message');
 const employeeCard = document.getElementById('employee-card');
 const detailsMessage = document.getElementById('details-message');
 const employeesTableBody = document.getElementById('employees-table-body');
+const tableSortableHeaders = document.querySelectorAll('#employees-table thead th[data-sort]');
 const formTitle = document.getElementById('form-title');
 const formHint = document.getElementById('form-hint');
 const submitButton = document.getElementById('submit-button');
@@ -57,7 +58,7 @@ let allEmployees = [];
 let currentSortField = 'id';
 let currentSortDirection = 'asc';
 let currentPage = 1;
-let assistantMode = 'data';
+let assistantMode = 'chat';
 let aiFilterMode = 'all';
 let aiSalaryFilter = null;
 let latestInsightSummary = 'Insights will appear once employee data loads.';
@@ -65,7 +66,6 @@ let latestInsightActions = ['Loading recommendations...'];
 let departmentChartInstance = null;
 let managerChartInstance = null;
 let latestInsightsRequestId = 0;
-let pendingAgentContext = null;
 let speechRecognitionInstance = null;
 let isVoiceListening = false;
 let voiceRepliesEnabled = true;
@@ -96,7 +96,7 @@ function formatCurrency(value) {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(Number(value) || 0);
 }
 
 function parseEmployeeId(value) {
@@ -170,7 +170,7 @@ function buildEmployeeDetailsMarkup(employee) {
       <div class="modal-item"><span>ID</span><strong>${formatEmployeeId(employee.id)}</strong></div>
       <div class="modal-item"><span>Name</span><strong>${employee.name}</strong></div>
       <div class="modal-item"><span>Email</span><strong>${employee.email}</strong></div>
-      <div class="modal-item"><span>Salary</span><strong>${employee.salary}</strong></div>
+      <div class="modal-item"><span>Salary</span><strong>${formatCurrency(employee.salary)}</strong></div>
       <div class="modal-item"><span>Department</span><strong>${employee.department}</strong></div>
       <div class="modal-item"><span>Manager</span><strong>${employee.manager}</strong></div>
       <div class="modal-item modal-item-wide"><span>Geo Location</span><strong>${employee.geo_location}</strong></div>
@@ -190,6 +190,11 @@ function closeEmployeeModal() {
   employeeModal.setAttribute('aria-hidden', 'true');
 }
 
+function resetAiModes() {
+  aiFilterMode = 'all';
+  aiSalaryFilter = null;
+}
+
 function getFilteredEmployees() {
   const query = employeeFilterInput.value.trim().toLowerCase();
   let employees = [...allEmployees];
@@ -206,15 +211,12 @@ function getFilteredEmployees() {
   if (aiFilterMode === 'salary-range' && aiSalaryFilter) {
     employees = employees.filter((employee) => {
       const salary = Number(employee.salary) || 0;
-
       if (typeof aiSalaryFilter.min === 'number' && salary < aiSalaryFilter.min) {
         return false;
       }
-
       if (typeof aiSalaryFilter.max === 'number' && salary > aiSalaryFilter.max) {
         return false;
       }
-
       return true;
     });
   }
@@ -232,9 +234,7 @@ function getFilteredEmployees() {
       employee.department,
       employee.manager,
       employee.geo_location,
-    ]
-      .join(' ')
-      .toLowerCase();
+    ].join(' ').toLowerCase();
 
     return searchableText.includes(query);
   });
@@ -262,11 +262,7 @@ function paginateEmployees(employees) {
   const startIndex = (currentPage - 1) * PAGE_SIZE;
   const paginatedEmployees = employees.slice(startIndex, startIndex + PAGE_SIZE);
 
-  return {
-    totalPages,
-    paginatedEmployees,
-    startIndex,
-  };
+  return { totalPages, paginatedEmployees, startIndex };
 }
 
 function updatePaginationControls(totalItems, totalPages, startIndex, visibleCount) {
@@ -280,18 +276,22 @@ function updateSortDirectionButton() {
   sortDirectionButton.textContent = currentSortDirection === 'asc' ? 'Ascending' : 'Descending';
 }
 
+function updateSortableHeaders() {
+  tableSortableHeaders.forEach((header) => {
+    const isActive = header.dataset.sort === currentSortField;
+    header.classList.toggle('sorted-asc', isActive && currentSortDirection === 'asc');
+    header.classList.toggle('sorted-desc', isActive && currentSortDirection === 'desc');
+    header.setAttribute('aria-sort', isActive ? (currentSortDirection === 'asc' ? 'ascending' : 'descending') : 'none');
+  });
+}
+
 function updateDetailsMessage(filteredEmployees) {
   const query = employeeFilterInput.value.trim();
   if (!query) {
     setMessage(detailsMessage, `Showing ${filteredEmployees.length} employee record(s).`);
     return;
   }
-
   setMessage(detailsMessage, `Showing ${filteredEmployees.length} filtered employee record(s) for "${query}".`);
-}
-
-function getTopEntry(countMap) {
-  return Object.entries(countMap).sort((left, right) => right[1] - left[1])[0] || null;
 }
 
 function destroyChart(chartInstance) {
@@ -309,7 +309,6 @@ function renderChart(canvas, chartInstance, countMap, emptyMessage, label, color
 
   if (!entries.length) {
     destroyChart(chartInstance);
-
     if (canvas.parentElement) {
       let emptyNode = canvas.parentElement.querySelector('.mini-chart-empty');
       if (!emptyNode) {
@@ -319,7 +318,6 @@ function renderChart(canvas, chartInstance, countMap, emptyMessage, label, color
       }
       emptyNode.textContent = emptyMessage;
     }
-
     return null;
   }
 
@@ -334,25 +332,21 @@ function renderChart(canvas, chartInstance, countMap, emptyMessage, label, color
     type: 'bar',
     data: {
       labels: entries.map(([entryLabel]) => entryLabel),
-      datasets: [
-        {
-          label,
-          data: entries.map(([, value]) => value),
-          backgroundColor: colors,
-          borderRadius: 10,
-          borderSkipped: false,
-          borderWidth: 0,
-          barThickness: 18,
-        },
-      ],
+      datasets: [{
+        label,
+        data: entries.map(([, value]) => value),
+        backgroundColor: colors,
+        borderRadius: 10,
+        borderSkipped: false,
+        borderWidth: 0,
+        barThickness: 18,
+      }],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: {
-          display: false,
-        },
+        legend: { display: false },
         tooltip: {
           backgroundColor: 'rgba(12, 28, 26, 0.92)',
           titleColor: '#ffffff',
@@ -361,33 +355,17 @@ function renderChart(canvas, chartInstance, countMap, emptyMessage, label, color
       },
       scales: {
         x: {
-          grid: {
-            display: false,
-          },
-          ticks: {
-            color: 'rgba(245, 255, 252, 0.84)',
-            maxRotation: 0,
-            minRotation: 0,
-          },
+          grid: { display: false },
+          ticks: { color: 'rgba(245, 255, 252, 0.84)', maxRotation: 0, minRotation: 0 },
         },
         y: {
           beginAtZero: true,
-          ticks: {
-            precision: 0,
-            color: 'rgba(245, 255, 252, 0.72)',
-          },
-          grid: {
-            color: 'rgba(255, 255, 255, 0.1)',
-          },
+          ticks: { precision: 0, color: 'rgba(245, 255, 252, 0.72)' },
+          grid: { color: 'rgba(255, 255, 255, 0.1)' },
         },
       },
     },
   });
-}
-
-function resetAiModes() {
-  aiFilterMode = 'all';
-  aiSalaryFilter = null;
 }
 
 function appendAgentMessage(role, text) {
@@ -414,14 +392,329 @@ function setAgentThinking(isThinking) {
   if (agentTyping) {
     agentTyping.classList.toggle('hidden', !isThinking);
   }
-
   if (agentStatus) {
     agentStatus.textContent = isThinking ? 'Thinking...' : 'Online';
   }
 }
 
-function delay(ms) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
+function isChatMode(mode) {
+  return ['chat', 'local', 'ai'].includes((mode || '').toLowerCase());
+}
+
+function updateAssistantModeUI() {
+  if (assistantModeSelect) {
+    assistantModeSelect.value = assistantMode;
+  }
+  if (runAiQueryButton) {
+    runAiQueryButton.textContent = isChatMode(assistantMode) ? 'Run Local Chat' : 'Run AI Search';
+  }
+  if (assistantModeNote) {
+    assistantModeNote.textContent = isChatMode(assistantMode)
+      ? 'Local Chat mode uses local assistant responses.'
+      : 'Data Assistant mode uses records from this page.';
+  }
+  if (aiQueryInput) {
+    aiQueryInput.placeholder = isChatMode(assistantMode)
+      ? 'Ask anything. Example: summarize this workforce and suggest hiring priorities.'
+      : 'Ask: show engineering team, salary above 80000, salary between 50000 and 90000, manager Sarah, location Hyderabad';
+  }
+}
+
+async function askLocalAssistant(prompt) {
+  const response = await fetch('/api/ai/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt }),
+  });
+
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.message || 'Assistant request failed.');
+  }
+
+  return result.data || {};
+}
+
+function parseSalaryQuery(query) {
+  const betweenMatch = query.match(/salary\s+(?:between|from)\s+(\d+)\s+(?:and|to)\s+(\d+)/);
+  if (betweenMatch) {
+    const min = Number.parseInt(betweenMatch[1], 10);
+    const max = Number.parseInt(betweenMatch[2], 10);
+    if (!Number.isNaN(min) && !Number.isNaN(max)) {
+      return { min: Math.min(min, max), max: Math.max(min, max), label: `salary between ${Math.min(min, max)} and ${Math.max(min, max)}` };
+    }
+  }
+
+  const aboveMatch = query.match(/salary\s+(?:above|over|greater than|more than)\s+(\d+)/);
+  if (aboveMatch) {
+    const min = Number.parseInt(aboveMatch[1], 10);
+    if (!Number.isNaN(min)) {
+      return { min, max: null, label: `salary above ${min}` };
+    }
+  }
+
+  const belowMatch = query.match(/salary\s+(?:below|under|less than)\s+(\d+)/);
+  if (belowMatch) {
+    const max = Number.parseInt(belowMatch[1], 10);
+    if (!Number.isNaN(max)) {
+      return { min: null, max, label: `salary below ${max}` };
+    }
+  }
+
+  return null;
+}
+
+function applyDataAssistantRules(query) {
+  resetAiModes();
+  currentSortField = 'id';
+  currentSortDirection = 'asc';
+
+  if (/show all|reset|clear/.test(query)) {
+    employeeFilterInput.value = '';
+    return 'Reset complete. Showing full employee view.';
+  }
+
+  const salaryQuery = parseSalaryQuery(query);
+  if (salaryQuery) {
+    aiFilterMode = 'salary-range';
+    aiSalaryFilter = { min: salaryQuery.min, max: salaryQuery.max };
+    currentSortField = 'salary';
+    currentSortDirection = 'desc';
+  }
+
+  if (/high salary|top salary|highest salary|top paid/.test(query)) {
+    aiFilterMode = 'high-salary';
+    currentSortField = 'salary';
+    currentSortDirection = 'desc';
+  }
+
+  const searchText = query
+    .replace(/salary\s+(?:between|from)\s+\d+\s+(?:and|to)\s+\d+/g, ' ')
+    .replace(/salary\s+(?:above|over|greater than|more than)\s+\d+/g, ' ')
+    .replace(/salary\s+(?:below|under|less than)\s+\d+/g, ' ')
+    .replace(/high salary|top salary|highest salary|top paid/g, ' ')
+    .replace(/\b(show|employees|employee|team|manager|location|salary|with|find|only|all|records|record|whose|where|and|the)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  employeeFilterInput.value = searchText;
+  return `Applied ${searchText || 'general'} filter.`;
+}
+
+async function applyAiQuery(rawQuery) {
+  const query = (rawQuery || '').trim().toLowerCase();
+  if (!query) {
+    showToast('Enter an AI search prompt first.', true);
+    return;
+  }
+
+  appendAgentMessage('user', rawQuery.trim());
+  setAgentThinking(true);
+
+  if (isChatMode(assistantMode)) {
+    try {
+      const result = await askLocalAssistant(query);
+      appendAgentMessage('assistant', result.reply || 'Assistant returned no response.');
+      showToast(`Assistant replied using ${result.model || 'local model'}.`);
+    } catch (error) {
+      appendAgentMessage('assistant', error.message || 'Assistant is unavailable right now.');
+      showToast(error.message || 'Assistant is unavailable right now.', true);
+    }
+    setAgentThinking(false);
+    return;
+  }
+
+  const responseMessage = applyDataAssistantRules(query);
+  sortFieldSelect.value = currentSortField;
+  const employees = applyEmployeeFilter();
+  appendAgentMessage('assistant', `${responseMessage} Found ${employees.length} employee record(s).`);
+  setAgentThinking(false);
+}
+
+function renderInsightsFromPayload(payload) {
+  totalEmployeesStat.textContent = String(payload.visible_count || 0);
+  totalDepartmentsStat.textContent = String(payload.department_count || 0);
+  averageSalaryStat.textContent = formatCurrency(Number(payload.average_salary || 0));
+  managerLoadStat.textContent = payload.top_manager ? String(payload.top_manager.count) : '0';
+  managerNoteStat.textContent = payload.top_manager
+    ? `${payload.top_manager.name} manages the largest visible team`
+    : 'No visible employee records';
+
+  latestInsightSummary = payload.summary || 'No insights available.';
+  latestInsightActions = Array.isArray(payload.actions) && payload.actions.length
+    ? payload.actions
+    : ['No recommendations available.'];
+
+  aiSummaryText.textContent = latestInsightSummary;
+  aiActionList.innerHTML = latestInsightActions.map((action) => `<li>${action}</li>`).join('');
+
+  departmentChartInstance = renderChart(
+    departmentChartCanvas,
+    departmentChartInstance,
+    payload.distributions?.departments || {},
+    'No department data available.',
+    'Departments',
+    ['rgba(217, 239, 233, 0.95)', 'rgba(190, 228, 220, 0.92)', 'rgba(157, 213, 201, 0.9)', 'rgba(118, 187, 171, 0.88)', 'rgba(242, 228, 198, 0.88)']
+  );
+
+  managerChartInstance = renderChart(
+    managerChartCanvas,
+    managerChartInstance,
+    payload.distributions?.managers || {},
+    'No manager data available.',
+    'Managers',
+    ['rgba(242, 228, 198, 0.95)', 'rgba(232, 211, 170, 0.92)', 'rgba(217, 239, 233, 0.9)', 'rgba(157, 213, 201, 0.88)', 'rgba(118, 187, 171, 0.86)']
+  );
+}
+
+function updateInsightsFallback(employees) {
+  const departmentCounts = {};
+  const managerCounts = {};
+  let salaryTotal = 0;
+  let highest = employees[0] || null;
+
+  for (const employee of employees) {
+    salaryTotal += Number(employee.salary) || 0;
+    departmentCounts[employee.department] = (departmentCounts[employee.department] || 0) + 1;
+    managerCounts[employee.manager] = (managerCounts[employee.manager] || 0) + 1;
+    if (!highest || Number(employee.salary) > Number(highest.salary)) {
+      highest = employee;
+    }
+  }
+
+  const averageSalary = employees.length ? Math.round(salaryTotal / employees.length) : 0;
+  const topManager = Object.entries(managerCounts).sort((a, b) => b[1] - a[1])[0] || null;
+
+  totalEmployeesStat.textContent = String(employees.length);
+  totalDepartmentsStat.textContent = String(Object.keys(departmentCounts).length);
+  averageSalaryStat.textContent = formatCurrency(averageSalary);
+  managerLoadStat.textContent = topManager ? String(topManager[1]) : '0';
+  managerNoteStat.textContent = topManager ? `${topManager[0]} manages the largest visible team` : 'No visible employee records';
+
+  latestInsightSummary = employees.length
+    ? `The current view covers ${employees.length} employees across ${Object.keys(departmentCounts).length} departments. Average salary is ${formatCurrency(averageSalary)}${highest ? `, with ${highest.name} highest at ${formatCurrency(highest.salary)}.` : '.'}`
+    : 'No records match the current view. Clear the filter or add a new employee to generate AI guidance.';
+
+  latestInsightActions = employees.length
+    ? ['Use manager and department filters to inspect team balance.']
+    : ['Clear filters to restore the full workforce view.', 'Add an employee record to rebuild insights.'];
+
+  aiSummaryText.textContent = latestInsightSummary;
+  aiActionList.innerHTML = latestInsightActions.map((action) => `<li>${action}</li>`).join('');
+
+  departmentChartInstance = renderChart(
+    departmentChartCanvas,
+    departmentChartInstance,
+    departmentCounts,
+    'No department data available.',
+    'Departments',
+    ['rgba(217, 239, 233, 0.95)', 'rgba(190, 228, 220, 0.92)', 'rgba(157, 213, 201, 0.9)', 'rgba(118, 187, 171, 0.88)', 'rgba(242, 228, 198, 0.88)']
+  );
+
+  managerChartInstance = renderChart(
+    managerChartCanvas,
+    managerChartInstance,
+    managerCounts,
+    'No manager data available.',
+    'Managers',
+    ['rgba(242, 228, 198, 0.95)', 'rgba(232, 211, 170, 0.92)', 'rgba(217, 239, 233, 0.9)', 'rgba(157, 213, 201, 0.88)', 'rgba(118, 187, 171, 0.86)']
+  );
+}
+
+function buildInsightsQueryParams() {
+  const params = new URLSearchParams();
+  const query = employeeFilterInput.value.trim();
+
+  if (query) {
+    params.set('query', query);
+  }
+
+  if (aiFilterMode !== 'all') {
+    params.set('ai_mode', aiFilterMode);
+  }
+
+  if (aiSalaryFilter?.min !== null && aiSalaryFilter?.min !== undefined) {
+    params.set('min_salary', String(aiSalaryFilter.min));
+  }
+
+  if (aiSalaryFilter?.max !== null && aiSalaryFilter?.max !== undefined) {
+    params.set('max_salary', String(aiSalaryFilter.max));
+  }
+
+  return params.toString();
+}
+
+async function refreshInsights(fallbackEmployees) {
+  const requestId = ++latestInsightsRequestId;
+  try {
+    const queryString = buildInsightsQueryParams();
+    const response = await fetch(queryString ? `/api/insights?${queryString}` : '/api/insights');
+    const result = await response.json();
+
+    if (requestId !== latestInsightsRequestId) {
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Unable to load insights.');
+    }
+
+    renderInsightsFromPayload(result.data || {});
+  } catch (_error) {
+    if (requestId !== latestInsightsRequestId) {
+      return;
+    }
+    updateInsightsFallback(fallbackEmployees);
+  }
+}
+
+function exportAiSummary() {
+  const lines = [
+    'Medivra AI Workforce Summary',
+    '',
+    latestInsightSummary,
+    '',
+    'Suggested Actions:',
+    ...latestInsightActions.map((action, index) => `${index + 1}. ${action}`),
+  ];
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'medivra-ai-summary.txt';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  showToast('AI summary exported.');
+}
+
+function exportChartImage(canvas, filename, emptyMessage) {
+  if (!canvas) {
+    showToast(emptyMessage, true);
+    return;
+  }
+
+  const link = document.createElement('a');
+  link.href = canvas.toDataURL('image/png');
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  showToast(`Exported ${filename}.`);
+}
+
+function speakAssistantReply(text) {
+  if (!voiceRepliesEnabled || !('speechSynthesis' in window) || !text) {
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text.slice(0, 260));
+  utterance.rate = 1;
+  utterance.pitch = 1;
+  utterance.volume = 0.9;
+  window.speechSynthesis.speak(utterance);
 }
 
 function updateVoiceButtonState() {
@@ -440,54 +733,6 @@ function updateVoiceReplyToggle() {
 
   voiceReplyToggle.textContent = voiceRepliesEnabled ? 'Voice Replies: On' : 'Voice Replies: Off';
   voiceReplyToggle.setAttribute('aria-pressed', voiceRepliesEnabled ? 'true' : 'false');
-}
-
-function updateAssistantModeUI() {
-  if (assistantModeSelect) {
-    assistantModeSelect.value = assistantMode;
-  }
-
-  if (assistantModeNote) {
-    assistantModeNote.textContent = assistantMode === 'gemini'
-      ? 'Gemini Chat mode sends your prompts to Gemini API and does not filter local page data.'
-      : 'Data Assistant mode uses records from this page.';
-  }
-
-  if (aiQueryInput) {
-    aiQueryInput.placeholder = assistantMode === 'gemini'
-      ? 'Ask Gemini anything. Example: summarize this workforce and suggest hiring priorities.'
-      : 'Ask: show engineering team, salary above 80000, salary between 50000 and 90000, manager Sarah, location Hyderabad';
-  }
-}
-
-async function askGemini(prompt) {
-  const response = await fetch('/api/ai/chat', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ prompt }),
-  });
-
-  const result = await response.json();
-  if (!response.ok) {
-    throw new Error(result.message || 'Gemini request failed.');
-  }
-
-  return result.data || {};
-}
-
-function speakAssistantReply(text) {
-  if (!voiceRepliesEnabled || !('speechSynthesis' in window) || !text) {
-    return;
-  }
-
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text.slice(0, 260));
-  utterance.rate = 1;
-  utterance.pitch = 1;
-  utterance.volume = 0.9;
-  window.speechSynthesis.speak(utterance);
 }
 
 function stopVoiceRecognition() {
@@ -570,601 +815,6 @@ function setupVoiceFeatures() {
   updateVoiceButtonState();
 }
 
-function clearFollowupSuggestions() {
-  if (!agentFollowups) {
-    return;
-  }
-
-  agentFollowups.classList.add('hidden');
-  agentFollowups.innerHTML = '';
-}
-
-function renderFollowupSuggestions(suggestions) {
-  if (!agentFollowups || !suggestions.length) {
-    clearFollowupSuggestions();
-    return;
-  }
-
-  agentFollowups.classList.remove('hidden');
-  agentFollowups.innerHTML = suggestions
-    .map((suggestion) => `<button type="button" class="agent-followup-chip" data-agent-followup="${suggestion}">${suggestion}</button>`)
-    .join('');
-}
-
-function extractEntity(query, keyword) {
-  const pattern = new RegExp(`${keyword}\\s+([a-zA-Z][a-zA-Z\\s]{1,40}?)(?=\\s+(?:salary|location|department|team|with|and|in|for|above|below|between|$)|$)`);
-  const match = query.match(pattern);
-  return match ? match[1].trim() : '';
-}
-
-function findKnownDepartment(query) {
-  const departmentSet = new Set(allEmployees.map((employee) => employee.department.toLowerCase()));
-  for (const department of departmentSet) {
-    if (department && query.includes(department)) {
-      return department;
-    }
-  }
-  return '';
-}
-
-function findKnownLocation(query) {
-  const locations = [...new Set(allEmployees.map((employee) => employee.geo_location.toLowerCase()))];
-  for (const location of locations) {
-    const head = location.split(',')[0].trim();
-    if (head && query.includes(head)) {
-      return head;
-    }
-  }
-  return '';
-}
-
-function buildInsightsQueryParams() {
-  const params = new URLSearchParams();
-  const query = employeeFilterInput.value.trim();
-
-  if (query) {
-    params.set('query', query);
-  }
-
-  if (aiFilterMode !== 'all') {
-    params.set('ai_mode', aiFilterMode);
-  }
-
-  if (aiSalaryFilter?.min !== null && aiSalaryFilter?.min !== undefined) {
-    params.set('min_salary', String(aiSalaryFilter.min));
-  }
-
-  if (aiSalaryFilter?.max !== null && aiSalaryFilter?.max !== undefined) {
-    params.set('max_salary', String(aiSalaryFilter.max));
-  }
-
-  return params.toString();
-}
-
-function parseSalaryQuery(query) {
-  const betweenMatch = query.match(/salary\s+(?:between|from)\s+(\d+)\s+(?:and|to)\s+(\d+)/);
-  if (betweenMatch) {
-    const min = Number.parseInt(betweenMatch[1], 10);
-    const max = Number.parseInt(betweenMatch[2], 10);
-
-    if (!Number.isNaN(min) && !Number.isNaN(max)) {
-      return {
-        min: Math.min(min, max),
-        max: Math.max(min, max),
-        label: `salary between ${Math.min(min, max)} and ${Math.max(min, max)}`,
-      };
-    }
-  }
-
-  const aboveMatch = query.match(/salary\s+(?:above|over|greater than|more than)\s+(\d+)/);
-  if (aboveMatch) {
-    const min = Number.parseInt(aboveMatch[1], 10);
-    if (!Number.isNaN(min)) {
-      return { min, max: null, label: `salary above ${min}` };
-    }
-  }
-
-  const belowMatch = query.match(/salary\s+(?:below|under|less than)\s+(\d+)/);
-  if (belowMatch) {
-    const max = Number.parseInt(belowMatch[1], 10);
-    if (!Number.isNaN(max)) {
-      return { min: null, max, label: `salary below ${max}` };
-    }
-  }
-
-  const exactMatch = query.match(/salary\s+(?:is|equals|exactly)\s+(\d+)/);
-  if (exactMatch) {
-    const amount = Number.parseInt(exactMatch[1], 10);
-    if (!Number.isNaN(amount)) {
-      return { min: amount, max: amount, label: `salary ${amount}` };
-    }
-  }
-
-  return null;
-}
-
-function stripSalaryQuery(query) {
-  return query
-    .replace(/salary\s+(?:between|from)\s+\d+\s+(?:and|to)\s+\d+/g, ' ')
-    .replace(/salary\s+(?:above|over|greater than|more than)\s+\d+/g, ' ')
-    .replace(/salary\s+(?:below|under|less than)\s+\d+/g, ' ')
-    .replace(/salary\s+(?:is|equals|exactly)\s+\d+/g, ' ')
-    .replace(/high salary|top salary|highest salary|top paid/g, ' ');
-}
-
-function extractAiSearchText(query) {
-  return stripSalaryQuery(query)
-    .replace(/\b(show|employees|employee|team|manager|location|salary|with|find|only|all|records|record|whose|where|and|the)\b/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function buildAgentInterpretation(query, salaryQuery) {
-  const managerName = extractEntity(query, 'manager');
-  const locationName = extractEntity(query, 'location') || findKnownLocation(query);
-  const departmentName = findKnownDepartment(query);
-  const terms = [];
-
-  if (managerName) {
-    terms.push(managerName);
-  }
-  if (departmentName) {
-    terms.push(departmentName);
-  }
-  if (locationName) {
-    terms.push(locationName);
-  }
-
-  const extractedText = extractAiSearchText(query);
-  if (extractedText) {
-    terms.push(extractedText);
-  }
-
-  const dedupedTerms = [...new Set(terms.map((term) => term.trim()).filter(Boolean))];
-
-  const sortAdvice = /highest|top|high salary|salary/.test(query)
-    ? { field: 'salary', direction: 'desc' }
-    : /manager/.test(query)
-      ? { field: 'manager', direction: 'asc' }
-      : /location/.test(query)
-        ? { field: 'department', direction: 'asc' }
-        : { field: 'id', direction: 'asc' };
-
-  return {
-    searchText: dedupedTerms.join(' ').trim(),
-    managerName,
-    departmentName,
-    locationName,
-    salaryQuery,
-    sortAdvice,
-  };
-}
-
-function detectAmbiguity(query, interpretation, salaryQuery) {
-  if (/manager/.test(query) && !interpretation.managerName) {
-    return {
-      key: 'manager',
-      question: 'Which manager should I filter by?',
-      suggestions: ['Sarah Smith', 'Michael Brown', 'Emily Davis'],
-    };
-  }
-
-  if (/location/.test(query) && !interpretation.locationName) {
-    return {
-      key: 'location',
-      question: 'Which location should I focus on?',
-      suggestions: ['Hyderabad', 'New York', 'San Francisco', 'Seattle'],
-    };
-  }
-
-  if ((/department|team/.test(query)) && !interpretation.departmentName) {
-    return {
-      key: 'department',
-      question: 'Which department do you want to inspect?',
-      suggestions: ['Engineering', 'Product', 'Marketing', 'IT'],
-    };
-  }
-
-  if (/salary/.test(query) && !salaryQuery && !/high salary|top salary|highest salary|top paid/.test(query)) {
-    return {
-      key: 'salary',
-      question: 'Tell me a salary condition: above, below, between, or exact?',
-      suggestions: ['salary above 80000', 'salary below 90000', 'salary between 50000 and 90000', 'salary exactly 75000'],
-    };
-  }
-
-  if (/show|find|filter/.test(query) && !interpretation.searchText && !salaryQuery && !/high salary|top salary|highest salary|top paid/.test(query)) {
-    return {
-      key: 'general',
-      question: 'What should I focus on: department, manager, location, or salary?',
-      suggestions: ['engineering', 'manager Sarah Smith', 'location Hyderabad', 'salary above 80000'],
-    };
-  }
-
-  return null;
-}
-
-function getVisibleEmployeesSnapshot() {
-  return sortEmployees(getFilteredEmployees());
-}
-
-function answerBotMetaQuery(query) {
-  if (/help|what can you do|capabilities/.test(query)) {
-    renderFollowupSuggestions([
-      'engineering salary above 80000',
-      'manager Sarah Smith in Hyderabad',
-      'salary between 50000 and 90000',
-      'show all employees',
-    ]);
-    return 'I can filter by department, manager, location, salary ranges, and combine them in one request. Try one of the suggested prompts below.';
-  }
-
-  if (/summary|summarize|insight/.test(query)) {
-    return `${latestInsightSummary} Suggested actions: ${latestInsightActions.join(' | ')}`;
-  }
-
-  if (/top manager|manager load/.test(query)) {
-    return managerNoteStat.textContent || 'No manager insight available right now.';
-  }
-
-  if (/highest paid|top paid employee/.test(query)) {
-    const employees = getVisibleEmployeesSnapshot();
-    if (!employees.length) {
-      return 'No employee records are visible right now.';
-    }
-
-    const highest = [...employees].sort((left, right) => Number(right.salary) - Number(left.salary))[0];
-    return `${highest.name} (${formatEmployeeId(highest.id)}) is currently highest paid at ${formatCurrency(Number(highest.salary))}.`;
-  }
-
-  return '';
-}
-
-function renderInsightsFromPayload(payload) {
-  totalEmployeesStat.textContent = String(payload.visible_count || 0);
-  totalDepartmentsStat.textContent = String(payload.department_count || 0);
-  averageSalaryStat.textContent = formatCurrency(Number(payload.average_salary || 0));
-  managerLoadStat.textContent = payload.top_manager ? String(payload.top_manager.count) : '0';
-  managerNoteStat.textContent = payload.top_manager
-    ? `${payload.top_manager.name} manages the largest visible team`
-    : 'No visible employee records';
-
-  latestInsightSummary = payload.summary || 'No insights available.';
-  latestInsightActions = Array.isArray(payload.actions) && payload.actions.length
-    ? payload.actions
-    : ['No recommendations available.'];
-
-  aiSummaryText.textContent = latestInsightSummary;
-  aiActionList.innerHTML = latestInsightActions.map((action) => `<li>${action}</li>`).join('');
-
-  departmentChartInstance = renderChart(
-    departmentChartCanvas,
-    departmentChartInstance,
-    payload.distributions?.departments || {},
-    'No department data available.',
-    'Departments',
-    ['rgba(217, 239, 233, 0.95)', 'rgba(190, 228, 220, 0.92)', 'rgba(157, 213, 201, 0.9)', 'rgba(118, 187, 171, 0.88)', 'rgba(242, 228, 198, 0.88)']
-  );
-  managerChartInstance = renderChart(
-    managerChartCanvas,
-    managerChartInstance,
-    payload.distributions?.managers || {},
-    'No manager data available.',
-    'Managers',
-    ['rgba(242, 228, 198, 0.95)', 'rgba(232, 211, 170, 0.92)', 'rgba(217, 239, 233, 0.9)', 'rgba(157, 213, 201, 0.88)', 'rgba(118, 187, 171, 0.86)']
-  );
-}
-
-async function refreshInsights(fallbackEmployees) {
-  const requestId = ++latestInsightsRequestId;
-
-  try {
-    const queryString = buildInsightsQueryParams();
-    const response = await fetch(queryString ? `/api/insights?${queryString}` : '/api/insights');
-    const result = await response.json();
-
-    if (requestId !== latestInsightsRequestId) {
-      return;
-    }
-
-    if (!response.ok) {
-      throw new Error(result.message || 'Unable to load insights.');
-    }
-
-    renderInsightsFromPayload(result.data || {});
-  } catch (error) {
-    if (requestId !== latestInsightsRequestId) {
-      return;
-    }
-
-    updateInsights(fallbackEmployees);
-  }
-}
-
-function updateInsights(employees) {
-  if (!employees.length) {
-    totalEmployeesStat.textContent = '0';
-    totalDepartmentsStat.textContent = '0';
-    averageSalaryStat.textContent = '$0';
-    managerLoadStat.textContent = '0';
-    managerNoteStat.textContent = 'No visible employee records';
-    latestInsightSummary = 'No records match the current view. Clear the filter or add a new employee to generate AI guidance.';
-    latestInsightActions = [
-      'Clear filters to restore the full workforce view.',
-      'Add an employee record to rebuild live insights.',
-    ];
-    aiSummaryText.textContent = latestInsightSummary;
-    aiActionList.innerHTML = latestInsightActions.map((action) => `<li>${action}</li>`).join('');
-    departmentChartInstance = renderChart(
-      departmentChartCanvas,
-      departmentChartInstance,
-      {},
-      'No department data available.',
-      'Departments',
-      ['rgba(217, 239, 233, 0.92)']
-    );
-    managerChartInstance = renderChart(
-      managerChartCanvas,
-      managerChartInstance,
-      {},
-      'No manager data available.',
-      'Managers',
-      ['rgba(242, 228, 198, 0.92)']
-    );
-    return;
-  }
-
-  const departmentCounts = {};
-  const managerCounts = {};
-  const locationCounts = {};
-  let salaryTotal = 0;
-  let highestPaidEmployee = employees[0];
-
-  for (const employee of employees) {
-    salaryTotal += Number(employee.salary) || 0;
-    departmentCounts[employee.department] = (departmentCounts[employee.department] || 0) + 1;
-    managerCounts[employee.manager] = (managerCounts[employee.manager] || 0) + 1;
-    locationCounts[employee.geo_location] = (locationCounts[employee.geo_location] || 0) + 1;
-
-    if (Number(employee.salary) > Number(highestPaidEmployee.salary)) {
-      highestPaidEmployee = employee;
-    }
-  }
-
-  const averageSalary = Math.round(salaryTotal / employees.length);
-  const topDepartment = getTopEntry(departmentCounts);
-  const topManager = getTopEntry(managerCounts);
-  const topLocation = getTopEntry(locationCounts);
-
-  totalEmployeesStat.textContent = String(employees.length);
-  totalDepartmentsStat.textContent = String(Object.keys(departmentCounts).length);
-  averageSalaryStat.textContent = formatCurrency(averageSalary);
-  managerLoadStat.textContent = topManager ? String(topManager[1]) : '0';
-  managerNoteStat.textContent = topManager ? `${topManager[0]} manages the largest visible team` : 'Waiting for workforce data';
-
-  const summaryParts = [];
-  summaryParts.push(`The current view covers ${employees.length} employee${employees.length === 1 ? '' : 's'} across ${Object.keys(departmentCounts).length} department${Object.keys(departmentCounts).length === 1 ? '' : 's'}.`);
-  summaryParts.push(`Average salary is ${formatCurrency(averageSalary)}, with ${highestPaidEmployee.name} currently highest at ${formatCurrency(Number(highestPaidEmployee.salary))}.`);
-  if (topDepartment) {
-    summaryParts.push(`${topDepartment[0]} is the largest department in view with ${topDepartment[1]} employee${topDepartment[1] === 1 ? '' : 's'}.`);
-  }
-  if (topLocation) {
-    summaryParts.push(`${topLocation[0]} has the strongest location presence with ${topLocation[1]} record${topLocation[1] === 1 ? '' : 's'}.`);
-  }
-  latestInsightSummary = summaryParts.join(' ');
-  aiSummaryText.textContent = latestInsightSummary;
-
-  const actions = [];
-  if (topDepartment && topDepartment[1] / employees.length >= 0.5) {
-    actions.push(`Department mix is concentrated in ${topDepartment[0]}. Review whether other teams need additional hiring coverage.`);
-  }
-  if (topManager && topManager[1] >= 3) {
-    actions.push(`${topManager[0]} manages ${topManager[1]} visible employees. Consider checking workload balance across managers.`);
-  }
-  if (Number(highestPaidEmployee.salary) >= averageSalary * 1.35) {
-    actions.push(`Compensation spread is wide. Compare ${highestPaidEmployee.name}'s package against the team average for role alignment.`);
-  }
-  if (employeeFilterInput.value.trim()) {
-    actions.push('These insights are based on the active filter. Clear the filter to compare against the full employee roster.');
-  }
-  if (!actions.length) {
-    actions.push('The current workforce view looks balanced. Use sorting by salary or department to inspect outliers and growth areas.');
-    actions.push('Search or filter by manager and location to spot team distribution patterns faster.');
-  }
-
-  latestInsightActions = actions;
-  aiActionList.innerHTML = latestInsightActions.map((action) => `<li>${action}</li>`).join('');
-  departmentChartInstance = renderChart(
-    departmentChartCanvas,
-    departmentChartInstance,
-    departmentCounts,
-    'No department data available.',
-    'Departments',
-    ['rgba(217, 239, 233, 0.95)', 'rgba(190, 228, 220, 0.92)', 'rgba(157, 213, 201, 0.9)', 'rgba(118, 187, 171, 0.88)', 'rgba(242, 228, 198, 0.88)']
-  );
-  managerChartInstance = renderChart(
-    managerChartCanvas,
-    managerChartInstance,
-    managerCounts,
-    'No manager data available.',
-    'Managers',
-    ['rgba(242, 228, 198, 0.95)', 'rgba(232, 211, 170, 0.92)', 'rgba(217, 239, 233, 0.9)', 'rgba(157, 213, 201, 0.88)', 'rgba(118, 187, 171, 0.86)']
-  );
-}
-
-function normalizeQueryText(value) {
-  return value.trim().toLowerCase();
-}
-
-async function applyAiQuery(rawQuery) {
-  const initialQuery = normalizeQueryText(rawQuery);
-  let query = initialQuery;
-
-  if (!query) {
-    showToast('Enter an AI search prompt first.', true);
-    return;
-  }
-
-  if (pendingAgentContext) {
-    query = `${pendingAgentContext.baseQuery} ${query}`.trim();
-    pendingAgentContext = null;
-    clearFollowupSuggestions();
-  }
-
-  resetAiModes();
-  currentPage = 1;
-  currentSortField = 'id';
-  currentSortDirection = 'asc';
-  appendAgentMessage('user', rawQuery.trim());
-  setAgentThinking(true);
-
-  if (assistantMode === 'gemini') {
-    clearFollowupSuggestions();
-    pendingAgentContext = null;
-
-    try {
-      const geminiResult = await askGemini(query);
-      await delay(220);
-      appendAgentMessage('assistant', geminiResult.reply || 'Gemini did not return a response.');
-      showToast(`Gemini replied using ${geminiResult.model || 'configured model'}.`);
-    } catch (error) {
-      appendAgentMessage('assistant', error.message || 'Unable to reach Gemini right now.');
-      showToast(error.message || 'Unable to reach Gemini right now.', true);
-    }
-
-    setAgentThinking(false);
-    return;
-  }
-
-  if (/show all|reset|clear/.test(query)) {
-    await delay(220);
-    employeeFilterInput.value = '';
-    currentSortField = 'id';
-    currentSortDirection = 'asc';
-    sortFieldSelect.value = currentSortField;
-    const employees = applyEmployeeFilter();
-    appendAgentMessage('assistant', `Reset complete. Showing full employee view with ${employees.length} record(s).`);
-    setAgentThinking(false);
-    showToast('AI search reset to the full employee view.');
-    return;
-  }
-
-  const metaReply = answerBotMetaQuery(query);
-  if (metaReply) {
-    await delay(220);
-    appendAgentMessage('assistant', metaReply);
-    setAgentThinking(false);
-    return;
-  }
-
-  const salaryQuery = parseSalaryQuery(query);
-  const interpretation = buildAgentInterpretation(query, salaryQuery);
-  const ambiguity = detectAmbiguity(query, interpretation, salaryQuery);
-
-  if (ambiguity) {
-    await delay(220);
-    pendingAgentContext = {
-      baseQuery: query,
-      key: ambiguity.key,
-    };
-    renderFollowupSuggestions(ambiguity.suggestions);
-    appendAgentMessage('assistant', ambiguity.question);
-    setAgentThinking(false);
-    showToast('Need one more detail to apply your request.');
-    return;
-  }
-
-  clearFollowupSuggestions();
-
-  if (salaryQuery) {
-    aiFilterMode = 'salary-range';
-    aiSalaryFilter = {
-      min: salaryQuery.min,
-      max: salaryQuery.max,
-    };
-    currentSortField = 'salary';
-    currentSortDirection = salaryQuery.max !== null && salaryQuery.min === salaryQuery.max ? 'asc' : 'desc';
-  }
-
-  if (/high salary|top salary|highest salary|top paid/.test(query)) {
-    aiFilterMode = 'high-salary';
-    currentSortField = 'salary';
-    currentSortDirection = 'desc';
-  }
-
-  if (aiFilterMode === 'all') {
-    currentSortField = interpretation.sortAdvice.field;
-    currentSortDirection = interpretation.sortAdvice.direction;
-  }
-
-  employeeFilterInput.value = interpretation.searchText;
-  sortFieldSelect.value = currentSortField;
-  const employees = applyEmployeeFilter();
-  await delay(220);
-
-  const appliedParts = [];
-  if (interpretation.departmentName) {
-    appliedParts.push(`department: ${interpretation.departmentName}`);
-  }
-  if (interpretation.managerName) {
-    appliedParts.push(`manager: ${interpretation.managerName}`);
-  }
-  if (interpretation.locationName) {
-    appliedParts.push(`location: ${interpretation.locationName}`);
-  }
-  if (salaryQuery) {
-    appliedParts.push(salaryQuery.label);
-  } else if (aiFilterMode === 'high-salary') {
-    appliedParts.push('high salary mode');
-  }
-  if (interpretation.searchText && !appliedParts.includes(interpretation.searchText)) {
-    appliedParts.push(`text match: ${interpretation.searchText}`);
-  }
-
-  appendAgentMessage(
-    'assistant',
-    `Applied ${appliedParts.length ? appliedParts.join(' | ') : 'general search'}. Found ${employees.length} employee record(s).`
-  );
-  setAgentThinking(false);
-  showToast(`AI search applied: ${interpretation.searchText || (salaryQuery ? salaryQuery.label : query)}.`);
-}
-
-function exportAiSummary() {
-  const lines = [
-    'Medivra AI Workforce Summary',
-    '',
-    latestInsightSummary,
-    '',
-    'Suggested Actions:',
-    ...latestInsightActions.map((action, index) => `${index + 1}. ${action}`),
-  ];
-  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'medivra-ai-summary.txt';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-  showToast('AI summary exported.');
-}
-
-function exportChartImage(canvas, filename, emptyMessage) {
-  if (!canvas) {
-    showToast(emptyMessage, true);
-    return;
-  }
-
-  const link = document.createElement('a');
-  link.href = canvas.toDataURL('image/png');
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  showToast(`Exported ${filename}.`);
-}
-
 function applyEmployeeFilter() {
   const filteredEmployees = getFilteredEmployees();
   const sortedEmployees = sortEmployees(filteredEmployees);
@@ -1174,6 +824,7 @@ function applyEmployeeFilter() {
   updateDetailsMessage(filteredEmployees);
   updatePaginationControls(filteredEmployees.length, totalPages, startIndex, paginatedEmployees.length);
   updateSortDirectionButton();
+  updateSortableHeaders();
   refreshInsights(filteredEmployees);
   return filteredEmployees;
 }
@@ -1195,22 +846,22 @@ function renderEmployee(employee) {
 
 function renderEmployeesTable(employees) {
   if (!employees.length) {
-    employeesTableBody.innerHTML = '<tr><td colspan="8">No employees found.</td></tr>';
+    employeesTableBody.innerHTML = '<tr><td colspan="8" class="empty-table-state">No employees found.</td></tr>';
     return;
   }
 
   employeesTableBody.innerHTML = employees
     .map((employee) => `
       <tr>
-        <td>${formatEmployeeId(employee.id)}</td>
-        <td>${employee.name}</td>
-        <td>${employee.email}</td>
-        <td>${formatCurrency(Number(employee.salary))}</td>
-        <td>${employee.department}</td>
-        <td>${employee.manager}</td>
-        <td>${employee.geo_location}</td>
+        <td><span class="id-badge">${formatEmployeeId(employee.id)}</span></td>
+        <td title="${employee.name}">${employee.name}</td>
+        <td class="truncate-cell" title="${employee.email}">${employee.email}</td>
+        <td><span class="salary-pill">${formatCurrency(Number(employee.salary))}</span></td>
+        <td title="${employee.department}">${employee.department}</td>
+        <td title="${employee.manager}">${employee.manager}</td>
+        <td class="truncate-cell" title="${employee.geo_location}">${employee.geo_location}</td>
         <td>
-          <div class="row-actions">
+          <div class="row-actions row-actions-inline">
             <button type="button" class="table-button" data-action="view" data-id="${employee.id}">View</button>
             <button type="button" class="table-button button-secondary" data-action="edit" data-id="${employee.id}">Modify</button>
             <button type="button" class="table-button button-danger" data-action="delete" data-id="${employee.id}">Delete</button>
@@ -1276,7 +927,7 @@ async function handleDeleteEmployee(employeeId) {
     setMessage(addMessage, `Employee ${result.data.name} was deleted successfully. Removed ID: ${formatEmployeeId(result.data.id)}.`);
     showToast(`Deleted ${result.data.name} (${formatEmployeeId(result.data.id)}).`);
     await loadEmployees();
-  } catch (error) {
+  } catch (_error) {
     setMessage(addMessage, 'Could not contact server. Please try again.', true);
     showToast('Could not contact server. Please try again.', true);
   }
@@ -1296,7 +947,7 @@ async function loadEmployees() {
 
     allEmployees = result.data || [];
     applyEmployeeFilter();
-  } catch (error) {
+  } catch (_error) {
     setMessage(detailsMessage, 'Could not load employee details from server.', true);
     showToast('Could not load employee details from server.', true);
   }
@@ -1335,7 +986,7 @@ searchForm.addEventListener('submit', async (event) => {
     showToast(`Found ${result.data.name} (${formatEmployeeId(result.data.id)}).`);
     renderEmployee(result.data);
     await loadEmployees();
-  } catch (error) {
+  } catch (_error) {
     setMessage(searchMessage, 'Could not contact server. Please try again.', true);
     showToast('Could not contact server. Please try again.', true);
   }
@@ -1381,7 +1032,7 @@ addForm.addEventListener('submit', async (event) => {
     renderEmployee(result.data);
     resetForm();
     await loadEmployees();
-  } catch (error) {
+  } catch (_error) {
     setMessage(addMessage, 'Could not contact server. Please try again.', true);
     showToast('Could not contact server. Please try again.', true);
   }
@@ -1444,6 +1095,37 @@ sortDirectionButton.addEventListener('click', () => {
   applyEmployeeFilter();
 });
 
+tableSortableHeaders.forEach((header) => {
+  const handleSort = () => {
+    const field = header.dataset.sort;
+    if (!field) {
+      return;
+    }
+
+    if (currentSortField === field) {
+      currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      currentSortField = field;
+      currentSortDirection = field === 'salary' ? 'desc' : 'asc';
+    }
+
+    if (sortFieldSelect.querySelector(`option[value="${currentSortField}"]`)) {
+      sortFieldSelect.value = currentSortField;
+    }
+
+    currentPage = 1;
+    applyEmployeeFilter();
+  };
+
+  header.addEventListener('click', handleSort);
+  header.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleSort();
+    }
+  });
+});
+
 prevPageButton.addEventListener('click', () => {
   if (currentPage > 1) {
     currentPage -= 1;
@@ -1500,14 +1182,12 @@ voiceReplyToggle?.addEventListener('click', () => {
 });
 
 assistantModeSelect?.addEventListener('change', () => {
-  assistantMode = assistantModeSelect.value === 'gemini' ? 'gemini' : 'data';
+  assistantMode = isChatMode(assistantModeSelect.value) ? 'chat' : 'data';
   updateAssistantModeUI();
-  clearFollowupSuggestions();
-  pendingAgentContext = null;
   appendAgentMessage(
     'assistant',
-    assistantMode === 'gemini'
-      ? 'Switched to Gemini Chat mode. I will now answer using Gemini instead of filtering local records.'
+    isChatMode(assistantMode)
+      ? 'Switched to Local Chat mode. I will answer from the local assistant backend.'
       : 'Switched to Data Assistant mode. I will now apply filters and insights on this page data.'
   );
 });
@@ -1517,17 +1197,6 @@ document.querySelectorAll('[data-ai-prompt]').forEach((button) => {
     aiQueryInput.value = button.dataset.aiPrompt;
     applyAiQuery(button.dataset.aiPrompt);
   });
-});
-
-agentFollowups?.addEventListener('click', (event) => {
-  const followupButton = event.target.closest('[data-agent-followup]');
-  if (!followupButton) {
-    return;
-  }
-
-  const suggestion = followupButton.dataset.agentFollowup || '';
-  aiQueryInput.value = suggestion;
-  applyAiQuery(suggestion);
 });
 
 aiQueryInput.addEventListener('keydown', (event) => {

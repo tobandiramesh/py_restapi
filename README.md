@@ -36,6 +36,16 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+3. Create a local environment file for secrets:
+```bash
+copy .env.example .env
+```
+
+Then edit `.env` and set your preferred chat mode:
+```env
+FLASK_SECRET_KEY=replace-with-a-local-secret
+```
+
 ## Running the Application
 
 ```bash

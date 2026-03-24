@@ -1,20 +1,20 @@
 from collections import Counter
 from datetime import datetime
 from functools import wraps
-import json
 import os
 from pathlib import Path
 import re
 import sqlite3
-from urllib import error as url_error
-from urllib import request as url_request
 
+from dotenv import load_dotenv
 from flask import Flask, jsonify, request, render_template, redirect, session, url_for
+
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "medivra-local-secret-key")
 
-BASE_DIR = Path(__file__).resolve().parent
 DATABASE_PATH = BASE_DIR / 'employees.db'
 EMAIL_PATTERN = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 MIN_SALARY = 1000
@@ -65,7 +65,6 @@ SAMPLE_EMPLOYEES = [
 
 DEMO_LOGIN_USERNAME = os.environ.get("MEDIVRA_APP_USERNAME", "admin")
 DEMO_LOGIN_PASSWORD = os.environ.get("MEDIVRA_APP_PASSWORD", "medivra123")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
 
 
 def login_required(view):
@@ -262,56 +261,112 @@ def build_insights_payload(employees, query_text=""):
     }
 
 
-def query_gemini_text(prompt):
-    gemini_api_key = (os.environ.get("GEMINI_API_KEY") or "").strip()
-    if not gemini_api_key:
-        return None, "Gemini API key is missing. Set GEMINI_API_KEY in your environment."
+def query_local_chatbot(prompt):
+    employees = get_all_employees_from_db()
+    prompt_text = (prompt or "").strip()
+    prompt_lower = prompt_text.lower()
 
-    endpoint = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={gemini_api_key}"
-    )
-    payload = {
-        "contents": [
-            {
-                "parts": [
-                    {
-                        "text": prompt,
-                    }
-                ]
-            }
+    if not prompt_text:
+        return "Please ask me something. I can help with employee queries or general questions."
+
+    department_counts = Counter(employee["department"] for employee in employees) if employees else {}
+    manager_counts = Counter(employee["manager"] for employee in employees) if employees else {}
+
+    if employees:
+        average_salary = round(sum(employee["salary"] for employee in employees) / len(employees))
+        highest_paid_employee = max(employees, key=lambda employee: employee["salary"])
+        top_department = department_counts.most_common(1)[0] if department_counts else None
+        top_manager = manager_counts.most_common(1)[0] if manager_counts else None
+    else:
+        average_salary = 0
+        highest_paid_employee = None
+        top_department = None
+        top_manager = None
+
+    if any(keyword in prompt_lower for keyword in ["hello", "hi", "hey", "how are you"]):
+        return (
+            f"Hello! I'm your Medivra AI assistant. I can help with employee data analysis "
+            f"and general questions. {f'I have {len(employees)} employees in the system.' if employees else 'No employees in system yet.'}"
+        )
+
+    if any(keyword in prompt_lower for keyword in ["help", "what can you do", "capabilities"]):
+        return (
+            "I can summarize workforce data, analyze salaries, compare departments and managers, "
+            "answer general questions, and help with drafting text."
+        )
+
+    if any(keyword in prompt_lower for keyword in ["summary", "summarize", "overview", "insight", "insights"]):
+        if not employees:
+            return "I can summarize your workforce once employee records are added."
+        return (
+            f"Workforce summary: {len(employees)} employees across {len(department_counts)} departments. "
+            f"Average salary is ${average_salary:,.0f}. "
+            f"Top department is {top_department[0]} ({top_department[1]} employees). "
+            f"Top manager is {top_manager[0]} ({top_manager[1]} reports). "
+            f"Highest paid employee is {highest_paid_employee['name']} at ${highest_paid_employee['salary']:,.0f}."
+        )
+
+    if employees and top_department:
+        for department in department_counts:
+            dept_pattern = r"\b" + re.escape(department.lower()) + r"\b"
+            if re.search(dept_pattern, prompt_lower):
+                department_employees = [employee for employee in employees if employee["department"] == department]
+                department_avg_salary = round(
+                    sum(employee["salary"] for employee in department_employees) / len(department_employees)
+                )
+                return (
+                    f"Department {department} has {len(department_employees)} employees "
+                    f"with average salary ${department_avg_salary:,.0f}."
+                )
+
+    if employees and top_manager:
+        for manager in manager_counts:
+            manager_pattern = r"\b" + re.escape(manager.lower()) + r"\b"
+            if re.search(manager_pattern, prompt_lower):
+                managed_employees = [employee for employee in employees if employee["manager"] == manager]
+                names_preview = ", ".join(employee["name"] for employee in managed_employees[:4])
+                return (
+                    f"{manager} manages {len(managed_employees)} employees. "
+                    f"Team preview: {names_preview or 'No names available'}."
+                )
+
+    salary_between_match = re.search(r"(?:between|from)\s+(\d{3,})\s+(?:and|to)\s+(\d{3,})", prompt_lower)
+    salary_above_match = re.search(r"(?:above|over|greater than|more than)\s+(\d{3,})", prompt_lower)
+    salary_below_match = re.search(r"(?:below|under|less than)\s+(\d{3,})", prompt_lower)
+
+    if salary_between_match and employees:
+        min_salary = int(salary_between_match.group(1))
+        max_salary = int(salary_between_match.group(2))
+        if min_salary > max_salary:
+            min_salary, max_salary = max_salary, min_salary
+        matched = [
+            employee for employee in employees
+            if min_salary <= employee["salary"] <= max_salary
         ]
-    }
+        return (
+            f"Found {len(matched)} employees with salary between ${min_salary:,.0f} and ${max_salary:,.0f}."
+        )
 
-    http_request = url_request.Request(
-        endpoint,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
+    if salary_above_match and employees:
+        min_salary = int(salary_above_match.group(1))
+        matched = [employee for employee in employees if employee["salary"] >= min_salary]
+        return f"Found {len(matched)} employees with salary above ${min_salary:,.0f}."
+
+    if salary_below_match and employees:
+        max_salary = int(salary_below_match.group(1))
+        matched = [employee for employee in employees if employee["salary"] <= max_salary]
+        return f"Found {len(matched)} employees with salary below ${max_salary:,.0f}."
+
+    if any(keyword in prompt_lower for keyword in ["thanks", "thank you", "goodbye", "bye"]):
+        return "You're welcome! Feel free to ask any other questions."
+
+    if any(keyword in prompt_lower for keyword in ["weather", "temperature", "forecast", "rain", "humidity"]):
+        return "I do not have live weather access in this assistant mode, but I can help with employee analytics."
+
+    return (
+        "I can answer questions about your workforce, help with writing and documents, "
+        "or assist with general inquiries. What can I help you with?"
     )
-
-    try:
-        with url_request.urlopen(http_request, timeout=20) as response:
-            response_payload = json.loads(response.read().decode("utf-8"))
-    except url_error.HTTPError as error:
-        try:
-            error_payload = json.loads(error.read().decode("utf-8"))
-            error_message = error_payload.get("error", {}).get("message", "Gemini request failed.")
-        except Exception:
-            error_message = "Gemini request failed."
-        return None, error_message
-    except Exception as error:
-        return None, str(error)
-
-    candidates = response_payload.get("candidates") or []
-    if not candidates:
-        return None, "Gemini did not return a response."
-
-    parts = (candidates[0].get("content") or {}).get("parts") or []
-    output_text = "\n".join(part.get("text", "") for part in parts if part.get("text", "")).strip()
-    if not output_text:
-        return None, "Gemini returned an empty response."
-
-    return output_text, None
 
 
 def validate_employee_payload(data, partial=False, current_emp_id=None):
@@ -498,19 +553,13 @@ def ai_chat():
             "timestamp": datetime.now().isoformat()
         }), 400
 
-    reply, error_message = query_gemini_text(prompt)
-    if error_message:
-        return jsonify({
-            "status": "error",
-            "message": error_message,
-            "timestamp": datetime.now().isoformat()
-        }), 502
-
+    reply = query_local_chatbot(prompt)
     return jsonify({
         "status": "success",
         "data": {
             "reply": reply,
-            "model": GEMINI_MODEL,
+            "model": "local-medivra-assistant",
+            "provider": "local",
         },
         "timestamp": datetime.now().isoformat()
     }), 200

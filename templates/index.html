@@ -66,7 +66,7 @@
           <span class="ai-badge">Live Insights</span>
           <select id="assistant-mode" class="assistant-mode-select" aria-label="Assistant mode">
             <option value="data">Data Assistant</option>
-            <option value="gemini">Gemini Chat</option>
+            <option value="chat">Local Chat</option>
           </select>
           <button id="export-ai-summary-button" type="button" class="ai-action-button">Export Summary</button>
         </div>
@@ -76,7 +76,7 @@
       <div class="ai-command-bar">
         <input id="ai-query-input" type="text" placeholder="Ask: show engineering team, salary above 80000, salary between 50000 and 90000, manager Sarah, location Hyderabad">
         <button id="voice-input-button" type="button" class="ai-action-button" title="Use microphone">Voice</button>
-        <button id="run-ai-query-button" type="button">Run AI Search</button>
+        <button id="run-ai-query-button" type="button">Run Local Chat</button>
         <button id="reset-ai-query-button" type="button" class="button-secondary">Reset</button>
       </div>
       <p id="voice-shortcut-hint" class="voice-shortcut-hint">Shortcut: focus this input and hold Ctrl + Space to talk.</p>
@@ -199,9 +199,11 @@
           <select id="sort-field" aria-label="Sort employees by field">
             <option value="id">Sort: ID</option>
             <option value="name">Sort: Name</option>
+            <option value="email">Sort: Email</option>
             <option value="salary">Sort: Salary</option>
             <option value="department">Sort: Department</option>
             <option value="manager">Sort: Manager</option>
+            <option value="geo_location">Sort: Geo Location</option>
           </select>
           <button id="sort-direction-button" type="button" class="button-secondary">Ascending</button>
           <button id="clear-filter-button" type="button" class="button-secondary">Clear</button>
@@ -210,13 +212,13 @@
           <table id="employees-table" class="employees-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Salary</th>
-                <th>Department</th>
-                <th>Manager</th>
-                <th>Geo Location</th>
+                <th class="sortable-column" data-sort="id" tabindex="0" role="button" aria-label="Sort by ID">ID</th>
+                <th class="sortable-column" data-sort="name" tabindex="0" role="button" aria-label="Sort by Name">Name</th>
+                <th class="sortable-column" data-sort="email" tabindex="0" role="button" aria-label="Sort by Email">Email</th>
+                <th class="sortable-column" data-sort="salary" tabindex="0" role="button" aria-label="Sort by Salary">Salary</th>
+                <th class="sortable-column" data-sort="department" tabindex="0" role="button" aria-label="Sort by Department">Department</th>
+                <th class="sortable-column" data-sort="manager" tabindex="0" role="button" aria-label="Sort by Manager">Manager</th>
+                <th class="sortable-column" data-sort="geo_location" tabindex="0" role="button" aria-label="Sort by Geo Location">Geo Location</th>
                 <th>Actions</th>
               </tr>
             </thead>

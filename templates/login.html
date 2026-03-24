@@ -58,10 +58,10 @@
 
       <form method="post" class="stack login-form">
         <label for="username">Username</label>
-        <input id="username" name="username" type="text" placeholder="Enter username" required>
+        <input id="username" name="username" type="text" placeholder="Enter username" value="{{ request.form.get('username', demo_username) }}" autocomplete="username" required>
 
         <label for="password">Password</label>
-        <input id="password" name="password" type="password" placeholder="Enter password" required>
+        <input id="password" name="password" type="password" placeholder="Enter password" value="{{ request.form.get('password', demo_password) }}" autocomplete="current-password" required>
 
         <button type="submit" class="full login-submit">Login</button>
       </form>

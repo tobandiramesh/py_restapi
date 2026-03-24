@@ -960,9 +960,10 @@ button.full {
 .table-wrap {
   overflow-x: auto;
   max-height: 58vh;
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid rgba(23, 33, 33, 0.12);
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .details-toolbar {
@@ -996,8 +997,8 @@ button.full {
 .employees-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.92rem;
-  background: rgba(255, 255, 255, 0.78);
+  font-size: 0.91rem;
+  background: rgba(255, 255, 255, 0.84);
   border-radius: 10px;
   overflow: hidden;
 }
@@ -1005,31 +1006,71 @@ button.full {
 .employees-table th,
 .employees-table td {
   text-align: left;
-  padding: 0.62rem 0.55rem;
+  padding: 0.78rem 0.7rem;
   border-bottom: 1px solid rgba(23, 33, 33, 0.14);
   white-space: nowrap;
+  vertical-align: middle;
 }
 
 .employees-table th {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: rgba(15, 118, 110, 0.12);
+  background: rgba(15, 118, 110, 0.14);
   color: #0d2c29;
-  font-size: 0.82rem;
-  letter-spacing: 0.02rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.06rem;
+  text-transform: uppercase;
+}
+
+.employees-table th.sortable-column {
+  cursor: pointer;
+  position: sticky;
+  padding-right: 1.65rem;
+  user-select: none;
+}
+
+.employees-table th.sortable-column:hover {
+  background: rgba(15, 118, 110, 0.19);
+}
+
+.employees-table th.sortable-column:focus-visible {
+  outline: 2px solid rgba(11, 90, 84, 0.5);
+  outline-offset: -2px;
+}
+
+.employees-table th.sortable-column::after {
+  content: "↕";
+  position: absolute;
+  right: 0.55rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.78rem;
+  color: rgba(13, 44, 41, 0.5);
+}
+
+.employees-table th.sortable-column.sorted-asc::after {
+  content: "↑";
+  color: rgba(11, 90, 84, 0.9);
+}
+
+.employees-table th.sortable-column.sorted-desc::after {
+  content: "↓";
+  color: rgba(11, 90, 84, 0.9);
 }
 
 .employees-table tbody tr:nth-child(even) {
-  background: rgba(23, 33, 33, 0.03);
+  background: rgba(23, 33, 33, 0.018);
 }
 
 .employees-table tbody tr:hover {
-  background: rgba(15, 118, 110, 0.08);
+  background: rgba(15, 118, 110, 0.11);
 }
 
-.employees-table td:nth-child(3) {
-  max-width: 14rem;
+.employees-table td:nth-child(2),
+.employees-table td:nth-child(3),
+.employees-table td:nth-child(7) {
+  max-width: 16rem;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -1044,10 +1085,53 @@ button.full {
   flex-wrap: wrap;
 }
 
+.row-actions-inline {
+  flex-wrap: nowrap;
+}
+
 .table-button {
-  padding: 0.42rem 0.72rem;
-  font-size: 0.82rem;
-  border-radius: 8px;
+  padding: 0.44rem 0.74rem;
+  font-size: 0.83rem;
+  border-radius: 9px;
+  min-width: 5.15rem;
+  text-align: center;
+}
+
+.id-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.52rem;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.11);
+  color: #0d4c46;
+  font-size: 0.77rem;
+  font-family: "IBM Plex Mono", Consolas, monospace;
+  letter-spacing: 0.02em;
+}
+
+.salary-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.24rem 0.56rem;
+  border-radius: 999px;
+  background: rgba(22, 55, 52, 0.08);
+  color: #163734;
+  font-family: "IBM Plex Mono", Consolas, monospace;
+  font-size: 0.81rem;
+}
+
+.truncate-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.empty-table-state {
+  text-align: center !important;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 1.2rem 0.8rem !important;
 }
 
 .pagination-bar {
@@ -1055,13 +1139,16 @@ button.full {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  margin-top: 0.9rem;
+  margin-top: 0.95rem;
+  padding: 0.6rem 0;
+  border-top: 1px solid rgba(23, 33, 33, 0.09);
 }
 
 .pagination-summary {
   margin: 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.93rem;
+  font-weight: 500;
 }
 
 .pagination-actions {
