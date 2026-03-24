@@ -3,6 +3,8 @@ const addForm = document.getElementById('add-form');
 const searchMessage = document.getElementById('search-message');
 const addMessage = document.getElementById('add-message');
 const employeeCard = document.getElementById('employee-card');
+const detailsMessage = document.getElementById('details-message');
+const employeesTableBody = document.getElementById('employees-table-body');
 
 function setMessage(target, text, isError = false) {
   target.textContent = text;
@@ -29,6 +31,46 @@ function renderEmployee(employee) {
   employeeCard.classList.remove('hidden');
 }
 
+function renderEmployeesTable(employees) {
+  if (!employees.length) {
+    employeesTableBody.innerHTML = '<tr><td colspan="7">No employees found.</td></tr>';
+    return;
+  }
+
+  employeesTableBody.innerHTML = employees
+    .sort((a, b) => a.id - b.id)
+    .map((employee) => `
+      <tr>
+        <td>${employee.id}</td>
+        <td>${employee.name}</td>
+        <td>${employee.email}</td>
+        <td>${employee.salary}</td>
+        <td>${employee.department}</td>
+        <td>${employee.manager}</td>
+        <td>${employee.geo_location}</td>
+      </tr>
+    `)
+    .join('');
+}
+
+async function loadEmployees() {
+  clearMessage(detailsMessage);
+  try {
+    const response = await fetch('/api/employees');
+    const result = await response.json();
+
+    if (!response.ok) {
+      setMessage(detailsMessage, result.message || 'Unable to load employee details.', true);
+      return;
+    }
+
+    renderEmployeesTable(result.data || []);
+    setMessage(detailsMessage, `Showing ${result.count} employee record(s).`);
+  } catch (error) {
+    setMessage(detailsMessage, 'Could not load employee details from server.', true);
+  }
+}
+
 searchForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   clearMessage(searchMessage);
@@ -51,6 +93,7 @@ searchForm.addEventListener('submit', async (event) => {
 
     setMessage(searchMessage, 'Employee found.');
     renderEmployee(result.data);
+    await loadEmployees();
   } catch (error) {
     setMessage(searchMessage, 'Could not contact server. Please try again.', true);
   }
@@ -93,7 +136,10 @@ addForm.addEventListener('submit', async (event) => {
 
     setMessage(addMessage, `Employee added successfully with ID ${result.data.id}.`);
     addForm.reset();
+    await loadEmployees();
   } catch (error) {
     setMessage(addMessage, 'Could not contact server. Please try again.', true);
   }
 });
+
+loadEmployees();
