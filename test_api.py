@@ -69,6 +69,36 @@ def test_create_employee_missing_field():
     response = requests.post(f"{BASE_URL}/employees", json=employee_data)
     print_response(response)
 
+def test_create_employee_invalid_email():
+    """Test create employee with invalid email"""
+    print("\n7. TESTING CREATE EMPLOYEE WITH INVALID EMAIL")
+    print("=" * 80)
+    employee_data = {
+        "name": "Invalid Email Employee",
+        "email": "invalid-email-format",
+        "salary": 65000,
+        "department": "Support",
+        "manager": "Sarah Smith",
+        "geo_location": "Austin, USA"
+    }
+    response = requests.post(f"{BASE_URL}/employees", json=employee_data)
+    print_response(response)
+
+def test_create_employee_invalid_salary():
+    """Test create employee with invalid salary"""
+    print("\n8. TESTING CREATE EMPLOYEE WITH INVALID SALARY")
+    print("=" * 80)
+    employee_data = {
+        "name": "Invalid Salary Employee",
+        "email": "invalid.salary@company.com",
+        "salary": 500,
+        "department": "Support",
+        "manager": "Sarah Smith",
+        "geo_location": "Austin, USA"
+    }
+    response = requests.post(f"{BASE_URL}/employees", json=employee_data)
+    print_response(response)
+
 def test_update_employee(emp_id):
     """Test update employee"""
     print(f"\n7. TESTING UPDATE EMPLOYEE (ID: {emp_id})")
@@ -88,6 +118,16 @@ def test_update_invalid_employee():
         "salary": 100000
     }
     response = requests.put(f"{BASE_URL}/employees/999", json=update_data)
+    print_response(response)
+
+def test_update_employee_invalid_email(emp_id):
+    """Test update employee with invalid email"""
+    print(f"\n9. TESTING UPDATE EMPLOYEE WITH INVALID EMAIL (ID: {emp_id})")
+    print("=" * 80)
+    update_data = {
+        "email": "bad-email"
+    }
+    response = requests.put(f"{BASE_URL}/employees/{emp_id}", json=update_data)
     print_response(response)
 
 def test_delete_employee(emp_id):
@@ -117,9 +157,12 @@ if __name__ == "__main__":
         test_get_invalid_employee()
         new_emp_id = test_create_employee()
         test_create_employee_missing_field()
+        test_create_employee_invalid_email()
+        test_create_employee_invalid_salary()
         
         if new_emp_id:
             test_update_employee(new_emp_id)
+            test_update_employee_invalid_email(new_emp_id)
             test_delete_employee(new_emp_id)
         
         test_update_invalid_employee()

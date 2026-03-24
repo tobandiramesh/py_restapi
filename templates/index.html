@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Employee Desk</title>
+  <title>Medivra | Employee Desk</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -11,9 +11,18 @@
 </head>
 <body>
   <div class="background-glow"></div>
+
+  <nav class="topbar">
+    <div class="topbar-brand">
+      <span class="brand-logo">M</span>
+      <span class="brand-name">Medivra</span>
+    </div>
+    <span class="topbar-tagline">People &amp; Culture Platform</span>
+  </nav>
+
   <main class="page">
     <header class="hero">
-      <p class="eyebrow">Employee Management</p>
+      <p class="eyebrow">Employee Management &mdash; Medivra</p>
       <h1>Employee Desk</h1>
       <p class="subtitle">Search employee details by ID and add new employee records in one place.</p>
     </header>
@@ -64,6 +73,7 @@
 
       <article class="panel details-panel full-width">
         <h2>Employee Details</h2>
+        <p class="subtitle panel-subtitle">Use filter, sorting, and pagination to quickly scan records.</p>
         <div id="details-message" class="message" aria-live="polite"></div>
         <div class="details-toolbar">
           <input id="employee-filter" type="text" placeholder="Filter by ID, name, email, department, manager or location">
@@ -104,6 +114,8 @@
       </article>
     </section>
   </main>
+
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
   <div id="employee-modal" class="modal hidden" aria-hidden="true">
     <div id="modal-backdrop" class="modal-backdrop"></div>

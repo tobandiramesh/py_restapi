@@ -10,6 +10,9 @@ A simple REST API application in Python using Flask that manages employee inform
 - Update employee information
 - Delete employee
 - Health check endpoint
+- SQLite persistence so employee data survives app restart
+- Server-side validation for email format and salary bounds
+- Toast notifications and richer employee management UI
 
 ## Installation
 
@@ -47,7 +50,16 @@ Web UI will be available at: `http://localhost:5000/`
 
 - Search employee by ID
 - Add a new employee using a form
+- Modify and delete employees from the table
+- View employee details in a dialog
+- Filter, sort, and paginate employee records
 - View employee details (id, salary, email, name, geo location, department, manager)
+
+## Data Storage
+
+- Employee records are stored in a local SQLite database: `employees.db`
+- The database is created automatically on first run
+- Sample employee data is inserted only when the database is empty
 
 ## API Endpoints
 
@@ -201,10 +213,16 @@ The API comes with 5 sample employees pre-loaded:
 ```json
 {
   "status": "error",
-  "message": "Missing required fields: name, email, salary, department, manager, geo_location",
+  "message": "Email must be in a valid format like name@company.com.",
   "timestamp": "2024-03-24T10:30:00.123456"
 }
 ```
+
+Other validation errors include:
+
+- `Salary must be between 1000 and 10000000.`
+- `Email already exists for another employee.`
+- `Provide at least one employee field to update.`
 
 ### 500 - Internal Server Error
 ```json
@@ -226,6 +244,7 @@ The API comes with 5 sample employees pre-loaded:
 ```
 py_restapi/
 ├── app.py              # Main Flask application
+├── employees.db        # SQLite database (created at runtime)
 ├── requirements.txt    # Python dependencies
 ├── README.md          # Documentation
 └── test_api.py        # Optional: Unit tests
@@ -233,9 +252,7 @@ py_restapi/
 
 ## Future Enhancements
 
-- Add database support (SQLAlchemy + PostgreSQL/MySQL)
 - Add authentication & authorization
-- Add input validation
 - Add logging
 - Add rate limiting
 - Add CORS support

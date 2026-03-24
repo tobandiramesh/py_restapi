@@ -22,6 +22,7 @@ const sortDirectionButton = document.getElementById('sort-direction-button');
 const paginationSummary = document.getElementById('pagination-summary');
 const prevPageButton = document.getElementById('prev-page-button');
 const nextPageButton = document.getElementById('next-page-button');
+const toastContainer = document.getElementById('toast-container');
 const employeeModal = document.getElementById('employee-modal');
 const modalBackdrop = document.getElementById('modal-backdrop');
 const closeModalButton = document.getElementById('close-modal-button');
@@ -34,6 +35,20 @@ let currentSortDirection = 'asc';
 let currentPage = 1;
 
 const PAGE_SIZE = 5;
+
+function showToast(message, isError = false) {
+  const toast = document.createElement('div');
+  toast.className = `toast ${isError ? 'toast-error' : 'toast-success'}`;
+  toast.textContent = message;
+  toastContainer.appendChild(toast);
+
+  window.setTimeout(() => {
+    toast.classList.add('toast-fade');
+    window.setTimeout(() => {
+      toast.remove();
+    }, 220);
+  }, 2600);
+}
 
 function formatEmployeeId(id) {
   return `EMP-${String(id).padStart(4, '0')}`;
@@ -122,6 +137,7 @@ function openEmployeeModal(employee) {
   modalBody.innerHTML = buildEmployeeDetailsMarkup(employee);
   employeeModal.classList.remove('hidden');
   employeeModal.setAttribute('aria-hidden', 'false');
+  showToast(`Viewing ${employee.name} (${formatEmployeeId(employee.id)}).`);
 }
 
 function closeEmployeeModal() {
@@ -235,7 +251,6 @@ function renderEmployeesTable(employees) {
   }
 
   employeesTableBody.innerHTML = employees
-    .sort((a, b) => a.id - b.id)
     .map((employee) => `
       <tr>
         <td>${formatEmployeeId(employee.id)}</td>
@@ -277,8 +292,10 @@ async function handleEditEmployee(employeeId) {
     setFormModeForEdit(employee);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setMessage(addMessage, `Editing ${employee.name} (${formatEmployeeId(employee.id)}). Update the fields and save changes.`);
+    showToast(`Editing ${employee.name} (${formatEmployeeId(employee.id)}).`);
   } catch (error) {
     setMessage(addMessage, error.message || 'Unable to load employee for editing.', true);
+    showToast(error.message || 'Unable to load employee for editing.', true);
   }
 }
 
@@ -298,6 +315,7 @@ async function handleDeleteEmployee(employeeId) {
 
     if (!response.ok) {
       setMessage(addMessage, result.message || 'Unable to delete employee.', true);
+      showToast(result.message || 'Unable to delete employee.', true);
       return;
     }
 
@@ -307,9 +325,11 @@ async function handleDeleteEmployee(employeeId) {
 
     employeeCard.classList.add('hidden');
     setMessage(addMessage, `Employee ${result.data.name} was deleted successfully. Removed ID: ${formatEmployeeId(result.data.id)}.`);
+    showToast(`Deleted ${result.data.name} (${formatEmployeeId(result.data.id)}).`);
     await loadEmployees();
   } catch (error) {
     setMessage(addMessage, 'Could not contact server. Please try again.', true);
+    showToast('Could not contact server. Please try again.', true);
   }
 }
 
@@ -321,6 +341,7 @@ async function loadEmployees() {
 
     if (!response.ok) {
       setMessage(detailsMessage, result.message || 'Unable to load employee details.', true);
+      showToast(result.message || 'Unable to load employee details.', true);
       return;
     }
 
@@ -328,6 +349,7 @@ async function loadEmployees() {
     applyEmployeeFilter();
   } catch (error) {
     setMessage(detailsMessage, 'Could not load employee details from server.', true);
+    showToast('Could not load employee details from server.', true);
   }
 }
 
@@ -339,12 +361,14 @@ searchForm.addEventListener('submit', async (event) => {
   const empIdInput = document.getElementById('emp-id').value.trim();
   if (!empIdInput) {
     setMessage(searchMessage, 'Please enter an employee ID.', true);
+    showToast('Please enter an employee ID.', true);
     return;
   }
 
   const empId = parseEmployeeId(empIdInput);
   if (!empId || empId < 1) {
     setMessage(searchMessage, 'Enter a valid employee ID like EMP-0001 or 1.', true);
+    showToast('Enter a valid employee ID like EMP-0001 or 1.', true);
     return;
   }
 
@@ -354,14 +378,17 @@ searchForm.addEventListener('submit', async (event) => {
 
     if (!response.ok) {
       setMessage(searchMessage, result.message || 'Employee not found.', true);
+      showToast(result.message || 'Employee not found.', true);
       return;
     }
 
     setMessage(searchMessage, 'Employee found.');
+    showToast(`Found ${result.data.name} (${formatEmployeeId(result.data.id)}).`);
     renderEmployee(result.data);
     await loadEmployees();
   } catch (error) {
     setMessage(searchMessage, 'Could not contact server. Please try again.', true);
+    showToast('Could not contact server. Please try again.', true);
   }
 });
 
@@ -374,6 +401,7 @@ addForm.addEventListener('submit', async (event) => {
   const emptyField = Object.entries(payload).find(([, value]) => value === '' || Number.isNaN(value));
   if (emptyField) {
     setMessage(addMessage, 'Please fill all fields with valid values.', true);
+    showToast('Please fill all fields with valid values.', true);
     return;
   }
 
@@ -391,17 +419,22 @@ addForm.addEventListener('submit', async (event) => {
 
     if (!response.ok) {
       setMessage(addMessage, result.message || 'Unable to add employee.', true);
+      showToast(result.message || 'Unable to add employee.', true);
       return;
     }
 
     setMessage(addMessage, isEditing
       ? `Employee ${result.data.name} was updated successfully. ID: ${formatEmployeeId(result.data.id)} | Department: ${result.data.department} | Email: ${result.data.email}`
       : `Employee ${result.data.name} was added successfully. Assigned ID: ${formatEmployeeId(result.data.id)} | Department: ${result.data.department} | Email: ${result.data.email}`);
+    showToast(isEditing
+      ? `Updated ${result.data.name} (${formatEmployeeId(result.data.id)}).`
+      : `Added ${result.data.name} (${formatEmployeeId(result.data.id)}).`);
     renderEmployee(result.data);
     resetForm();
     await loadEmployees();
   } catch (error) {
     setMessage(addMessage, 'Could not contact server. Please try again.', true);
+    showToast('Could not contact server. Please try again.', true);
   }
 });
 
@@ -427,6 +460,7 @@ employeesTableBody.addEventListener('click', async (event) => {
       openEmployeeModal(employee);
     } catch (error) {
       setMessage(detailsMessage, error.message || 'Unable to load employee details.', true);
+      showToast(error.message || 'Unable to load employee details.', true);
     }
     return;
   }

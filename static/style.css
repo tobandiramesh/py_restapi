@@ -25,6 +25,58 @@ body {
   overflow-x: hidden;
 }
 
+/* ── Top Navigation Bar ── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  height: 3.4rem;
+  background: rgba(15, 118, 110, 0.96);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 16px rgba(15, 118, 110, 0.3);
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: "IBM Plex Mono", monospace;
+  letter-spacing: -0.02em;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+}
+
+.brand-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.04em;
+}
+
+.topbar-tagline {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
 .background-glow {
   position: fixed;
   width: 42rem;
@@ -38,13 +90,14 @@ body {
 }
 
 .page {
-  max-width: 1100px;
+  max-width: 1220px;
   margin: 0 auto;
-  padding: 2.2rem 1rem 3rem;
+  padding: 2.4rem 1.2rem 3.2rem;
 }
 
 .hero {
   animation: reveal 500ms ease;
+  padding: 1rem 0.2rem 0.25rem;
 }
 
 .eyebrow {
@@ -77,7 +130,7 @@ h1 {
   margin-top: 1.6rem;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 1.1rem;
 }
 
 .full-width {
@@ -89,9 +142,15 @@ h1 {
   background: var(--panel);
   border: 1px solid var(--panel-border);
   border-radius: 18px;
-  padding: 1rem;
+  padding: 1.1rem;
   box-shadow: var(--shadow);
   animation: reveal 650ms ease;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.panel:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 22px 55px rgba(23, 33, 33, 0.16);
 }
 
 h2 {
@@ -227,10 +286,15 @@ button.full {
 
 .table-wrap {
   overflow-x: auto;
+  max-height: 58vh;
+  border-radius: 12px;
+  border: 1px solid rgba(23, 33, 33, 0.12);
+  background: rgba(255, 255, 255, 0.6);
 }
 
 .details-toolbar {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.6rem;
   align-items: center;
   margin-bottom: 0.85rem;
@@ -238,7 +302,7 @@ button.full {
 
 .details-toolbar select,
 .details-toolbar input {
-  flex: 1;
+  flex: 1 1 15rem;
 }
 
 .details-toolbar select {
@@ -260,7 +324,7 @@ button.full {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.92rem;
-  background: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.78);
   border-radius: 10px;
   overflow: hidden;
 }
@@ -274,19 +338,37 @@ button.full {
 }
 
 .employees-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   background: rgba(15, 118, 110, 0.12);
   color: #0d2c29;
   font-size: 0.82rem;
   letter-spacing: 0.02rem;
 }
 
+.employees-table tbody tr:nth-child(even) {
+  background: rgba(23, 33, 33, 0.03);
+}
+
 .employees-table tbody tr:hover {
   background: rgba(15, 118, 110, 0.08);
+}
+
+.employees-table td:nth-child(3) {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.employees-table td:nth-child(4) {
+  font-family: "IBM Plex Mono", Consolas, monospace;
 }
 
 .row-actions {
   display: flex;
   gap: 0.45rem;
+  flex-wrap: wrap;
 }
 
 .table-button {
@@ -312,6 +394,38 @@ button.full {
 .pagination-actions {
   display: flex;
   gap: 0.5rem;
+}
+
+.toast-container {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 30;
+  display: grid;
+  gap: 0.55rem;
+  width: min(24rem, calc(100vw - 2rem));
+}
+
+.toast {
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  color: #fff;
+  box-shadow: var(--shadow);
+  animation: reveal 180ms ease;
+}
+
+.toast-success {
+  background: #0d6b63;
+}
+
+.toast-error {
+  background: #a61b15;
+}
+
+.toast-fade {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 180ms ease, transform 180ms ease;
 }
 
 button:disabled {
@@ -418,12 +532,24 @@ button:disabled:hover {
 }
 
 @media (max-width: 900px) {
+  .topbar {
+    padding: 0 0.9rem;
+  }
+
+  .topbar-tagline {
+    display: none;
+  }
+
   .grid {
     grid-template-columns: 1fr;
   }
 
   .page {
-    padding-top: 1.4rem;
+    padding: 1.25rem 0.8rem 2.6rem;
+  }
+
+  .hero {
+    padding: 0.45rem 0;
   }
 
   .form-actions,
@@ -439,9 +565,19 @@ button:disabled:hover {
     grid-template-columns: 1fr;
   }
 
+  .table-wrap {
+    max-height: 64vh;
+  }
+
   .pagination-bar,
   .pagination-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .toast-container {
+    left: 1rem;
+    right: 1rem;
+    width: auto;
   }
 }
