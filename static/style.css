@@ -68,6 +68,11 @@ h1 {
   color: var(--muted);
 }
 
+.panel-subtitle {
+  margin-bottom: 0.9rem;
+  font-size: 0.92rem;
+}
+
 .grid {
   margin-top: 1.6rem;
   display: grid;
@@ -150,6 +155,34 @@ button.full {
   margin-top: 0.55rem;
 }
 
+.button-secondary {
+  background: #dbe9e4;
+  color: #163734;
+}
+
+.button-secondary:hover {
+  background: #c9ddd6;
+}
+
+.button-danger {
+  background: #b42318;
+}
+
+.button-danger:hover {
+  background: #8f1c13;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: 0.55rem;
+}
+
+.form-actions .full {
+  margin-top: 0;
+}
+
 .message {
   min-height: 1.2rem;
   margin-top: 0.75rem;
@@ -196,6 +229,33 @@ button.full {
   overflow-x: auto;
 }
 
+.details-toolbar {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 0.85rem;
+}
+
+.details-toolbar select,
+.details-toolbar input {
+  flex: 1;
+}
+
+.details-toolbar select {
+  min-width: 10rem;
+  padding: 0.65rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid rgba(23, 33, 33, 0.2);
+  font: inherit;
+  background: #fff;
+  outline: none;
+}
+
+.details-toolbar select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.18);
+}
+
 .employees-table {
   width: 100%;
   border-collapse: collapse;
@@ -222,6 +282,115 @@ button.full {
 
 .employees-table tbody tr:hover {
   background: rgba(15, 118, 110, 0.08);
+}
+
+.row-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.table-button {
+  padding: 0.42rem 0.72rem;
+  font-size: 0.82rem;
+  border-radius: 8px;
+}
+
+.pagination-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.9rem;
+}
+
+.pagination-summary {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.pagination-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+button:disabled:hover {
+  background: inherit;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(23, 33, 33, 0.42);
+  backdrop-filter: blur(4px);
+}
+
+.modal-dialog {
+  position: relative;
+  width: min(760px, calc(100vw - 2rem));
+  margin: 8vh auto 0;
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(23, 33, 33, 0.16);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: var(--shadow);
+  animation: reveal 180ms ease;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.modal-eyebrow {
+  margin-bottom: 0.25rem;
+}
+
+.modal-body {
+  margin-top: 1rem;
+}
+
+.modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.modal-item {
+  padding: 0.8rem;
+  border-radius: 12px;
+  background: rgba(15, 118, 110, 0.08);
+  border: 1px solid rgba(15, 118, 110, 0.12);
+}
+
+.modal-item span {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.modal-item strong {
+  display: block;
+  word-break: break-word;
+}
+
+.modal-item-wide {
+  grid-column: 1 / -1;
 }
 
 .hidden {
@@ -255,5 +424,24 @@ button.full {
 
   .page {
     padding-top: 1.4rem;
+  }
+
+  .form-actions,
+  .row-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .details-toolbar,
+  .modal-header,
+  .modal-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .pagination-bar,
+  .pagination-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

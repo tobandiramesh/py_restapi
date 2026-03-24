@@ -24,7 +24,7 @@
         <form id="search-form" class="stack">
           <label for="emp-id">Employee ID</label>
           <div class="row">
-            <input id="emp-id" name="emp-id" type="number" min="1" placeholder="e.g. 1" required>
+            <input id="emp-id" name="emp-id" type="text" placeholder="e.g. EMP-0001 or 1" required>
             <button type="submit">Search</button>
           </div>
         </form>
@@ -33,7 +33,8 @@
       </article>
 
       <article class="panel add-panel">
-        <h2>Add Employee</h2>
+        <h2 id="form-title">Add Employee</h2>
+        <p id="form-hint" class="subtitle panel-subtitle">Create a new employee record.</p>
         <form id="add-form" class="stack">
           <label for="name">Name</label>
           <input id="name" name="name" type="text" placeholder="John Carter" required>
@@ -53,7 +54,10 @@
           <label for="geo-location">Geo Location</label>
           <input id="geo-location" name="geo-location" type="text" placeholder="Hyderabad, India" required>
 
-          <button type="submit" class="full">Add Employee</button>
+          <div class="form-actions">
+            <button id="submit-button" type="submit" class="full">Add Employee</button>
+            <button id="cancel-edit-button" type="button" class="button-secondary hidden">Cancel Edit</button>
+          </div>
         </form>
         <div id="add-message" class="message" aria-live="polite"></div>
       </article>
@@ -61,6 +65,18 @@
       <article class="panel details-panel full-width">
         <h2>Employee Details</h2>
         <div id="details-message" class="message" aria-live="polite"></div>
+        <div class="details-toolbar">
+          <input id="employee-filter" type="text" placeholder="Filter by ID, name, email, department, manager or location">
+          <select id="sort-field" aria-label="Sort employees by field">
+            <option value="id">Sort: ID</option>
+            <option value="name">Sort: Name</option>
+            <option value="salary">Sort: Salary</option>
+            <option value="department">Sort: Department</option>
+            <option value="manager">Sort: Manager</option>
+          </select>
+          <button id="sort-direction-button" type="button" class="button-secondary">Ascending</button>
+          <button id="clear-filter-button" type="button" class="button-secondary">Clear</button>
+        </div>
         <div class="table-wrap">
           <table id="employees-table" class="employees-table">
             <thead>
@@ -72,14 +88,36 @@
                 <th>Department</th>
                 <th>Manager</th>
                 <th>Geo Location</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="employees-table-body"></tbody>
           </table>
         </div>
+        <div class="pagination-bar">
+          <p id="pagination-summary" class="pagination-summary">Page 1</p>
+          <div class="pagination-actions">
+            <button id="prev-page-button" type="button" class="button-secondary">Previous</button>
+            <button id="next-page-button" type="button" class="button-secondary">Next</button>
+          </div>
+        </div>
       </article>
     </section>
   </main>
+
+  <div id="employee-modal" class="modal hidden" aria-hidden="true">
+    <div id="modal-backdrop" class="modal-backdrop"></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow modal-eyebrow">Employee Record</p>
+          <h2 id="modal-title">Employee Details</h2>
+        </div>
+        <button id="close-modal-button" type="button" class="button-secondary">Close</button>
+      </div>
+      <div id="modal-body" class="modal-body"></div>
+    </div>
+  </div>
 
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
