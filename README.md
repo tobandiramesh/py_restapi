@@ -64,7 +64,9 @@ python app.py
 
 The API will be available at: `http://localhost:5000`
 
-Web UI will be available at: `http://localhost:5000/`
+Web entry point will be available at: `http://localhost:5000/login`
+
+After successful login, the dashboard is available at: `http://localhost:5000/`
 
 ## Web UI Features
 
@@ -272,20 +274,27 @@ Other validation errors include:
 
 ```
 py_restapi/
-├── app.py              # Main Flask application
-├── employees.db        # SQLite database (created at runtime)
-├── requirements.txt    # Python dependencies
-├── README.md          # Documentation
-└── test_api.py        # Optional: Unit tests
+├── app.py                                 # Main Flask application and API routes
+├── requirements.txt                       # Python dependencies
+├── README.md                              # Project documentation
+├── test_api.py                            # Scripted API checks
+├── docs/
+│   └── PROJECT_EXECUTION_AND_IMPLEMENTATION_GUIDE.md
+├── templates/
+│   ├── login.html                         # Login page
+│   └── index.html                         # Authenticated dashboard UI
+└── static/
+  ├── style.css                          # App and login styling
+  └── app.js                             # Frontend logic (table, insights, assistant)
 ```
 
 ## Future Enhancements
 
-- Add authentication & authorization
-- Add logging
-- Add rate limiting
-- Add CORS support
-- Add API documentation with Swagger/OpenAPI
+- Add role-based authorization and audit logs
+- Add OpenAPI/Swagger documentation
+- Add automated unit and integration tests for AI endpoints
+- Add auto fallback from GitHub provider to local provider on transient failures
+- Persist floating assistant chat history in local storage
 
 ## License
 
