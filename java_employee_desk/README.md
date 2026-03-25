@@ -55,6 +55,19 @@ GITHUB_MODELS_BASE_URL=https://models.inference.ai.azure.com
 GITHUB_COPILOT_MODEL=gpt-4o-mini
 ```
 
+## Ignored Files
+
+This project includes a Java/Spring-focused `.gitignore` to keep local artifacts out of source control.
+
+Ignored categories:
+
+- Build output: `target/`
+- IDE metadata: `.idea/`, `.vscode/`, `*.iml`, `.classpath`, `.project`, `.settings/`
+- Local runtime files: `*.log`, `*.pid`
+- Local secrets: `.env`
+
+Note: `.mvn/wrapper/maven-wrapper.jar` is currently tracked in this repository for out-of-the-box wrapper usage.
+
 ## API Compatibility
 
 Implemented endpoints:
