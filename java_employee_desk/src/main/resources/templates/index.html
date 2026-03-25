@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medivra | Employee Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" th:href="@{/style.css}" href="/style.css">
+</head>
+<body class="dashboard-body">
+  <div class="background-glow"></div>
+  <div class="background-grid"></div>
+
+  <nav class="topbar">
+    <div class="topbar-brand">
+      <span class="brand-logo">M</span>
+      <span class="brand-name">Medivra</span>
+    </div>
+    <div class="topbar-actions">
+      <span class="topbar-tagline">People &amp; Culture Platform</span>
+      <button id="theme-toggle-button" type="button" class="topbar-theme-toggle" aria-pressed="false" title="Switch theme">Dark Mode</button>
+      <a class="logout-link" th:href="@{/logout}" href="/logout">Logout</a>
+    </div>
+  </nav>
+
+  <main class="page">
+    <section class="dashboard-hero-shell">
+      <header class="hero">
+        <p class="eyebrow">Employee Management &mdash; Medivra</p>
+        <div class="hero-layout">
+          <div class="hero-copy">
+            <h1>Employee Desk</h1>
+            <p class="subtitle hero-subtitle">Search employee details, monitor workforce signals, and act on records from a single command center.</p>
+            <div class="hero-tags" aria-label="Key capabilities">
+              <span class="hero-tag">Live workforce insights</span>
+              <span class="hero-tag">Editable employee records</span>
+              <span class="hero-tag">Built-in AI assistance</span>
+            </div>
+          </div>
+          <aside class="hero-spotlight" aria-label="Workspace overview">
+            <p class="hero-spotlight-kicker">Operations Snapshot</p>
+            <h2>One view for search, changes, and team signals.</h2>
+            <p>Review workforce distribution, update records, and move into analysis without context switching between tools.</p>
+            <div class="hero-spotlight-metrics">
+              <div>
+                <strong>Fast</strong>
+                <span>Search, sort, and paginate instantly.</span>
+              </div>
+              <div>
+                <strong>Practical</strong>
+                <span>Act on records directly from the same page.</span>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </header>
+
+      <section class="overview-grid">
+      <article class="overview-card stat-card">
+        <span class="overview-label">Total Employees</span>
+        <strong id="stat-total-employees" class="overview-value">0</strong>
+        <p class="overview-note">Current visible workforce records</p>
+      </article>
+
+      <article class="overview-card stat-card">
+        <span class="overview-label">Departments</span>
+        <strong id="stat-total-departments" class="overview-value">0</strong>
+        <p class="overview-note">Unique teams represented</p>
+      </article>
+
+      <article class="overview-card stat-card">
+        <span class="overview-label">Average Salary</span>
+        <strong id="stat-average-salary" class="overview-value">0</strong>
+        <p class="overview-note">Calculated from visible records</p>
+      </article>
+
+      <article class="overview-card stat-card">
+        <span class="overview-label">Top Manager Load</span>
+        <strong id="stat-manager-load" class="overview-value">0</strong>
+        <p id="stat-manager-note" class="overview-note">Waiting for workforce data</p>
+      </article>
+      </section>
+    </section>
+
+    <section class="ai-panel panel">
+      <div class="ai-panel-header">
+        <div>
+          <p class="eyebrow ai-eyebrow">AI Workforce Assistant</p>
+          <h2>Smart guidance from your employee data</h2>
+        </div>
+        <div class="ai-panel-actions">
+          <span class="ai-badge">Live Insights</span>
+          <select id="assistant-mode" class="assistant-mode-select" aria-label="Assistant mode">
+            <option value="data">Data Assistant</option>
+            <option value="chat">Local Chat</option>
+          </select>
+          <button id="export-ai-summary-button" type="button" class="ai-action-button">Export Summary</button>
+        </div>
+      </div>
+      <p id="assistant-mode-note" class="assistant-mode-note">Data Assistant mode uses records from this page.</p>
+
+      <div class="ai-command-bar">
+        <input id="ai-query-input" type="text" placeholder="Ask: show engineering team, salary above 80000, salary between 50000 and 90000, manager Sarah, location Hyderabad">
+        <button id="voice-input-button" type="button" class="ai-action-button" title="Use microphone">Voice</button>
+        <button id="run-ai-query-button" type="button">Run Local Chat</button>
+        <button id="reset-ai-query-button" type="button" class="button-secondary">Reset</button>
+      </div>
+      <p id="voice-shortcut-hint" class="voice-shortcut-hint">Shortcut: focus this input and hold Ctrl + Space to talk.</p>
+
+      <div class="ai-chip-row">
+        <button type="button" class="ai-chip" data-ai-prompt="show engineering team">Engineering Team</button>
+        <button type="button" class="ai-chip" data-ai-prompt="high salary employees">High Salary</button>
+        <button type="button" class="ai-chip" data-ai-prompt="salary above 80000">Salary Above 80000</button>
+        <button type="button" class="ai-chip" data-ai-prompt="manager Sarah Smith">Manager Sarah</button>
+        <button type="button" class="ai-chip" data-ai-prompt="location Hyderabad">Hyderabad</button>
+        <button type="button" class="ai-chip" data-ai-prompt="show all employees">Show All</button>
+      </div>
+
+      <div class="agent-console">
+        <div class="agent-console-header">
+          <div class="agent-bot-pill">
+            <span class="agent-bot-dot"></span>
+            <span>Medivra AI Bot</span>
+          </div>
+          <div class="agent-header-actions">
+            <button id="voice-reply-toggle" type="button" class="agent-voice-toggle" aria-pressed="true">Voice Replies: On</button>
+            <span id="agent-status" class="agent-status">Online</span>
+          </div>
+        </div>
+        <div id="agent-chat-log" class="agent-chat-log" aria-live="polite">
+          <article class="agent-message assistant">
+            <p class="agent-role">Medivra Agent</p>
+            <p>Ask me things like "engineering salary above 80000" or "manager Sarah in Hyderabad" and I will adjust filters, sorting, and insights.</p>
+          </article>
+        </div>
+        <p id="agent-typing" class="agent-typing hidden">Medivra AI Bot is thinking...</p>
+        <div id="agent-followups" class="agent-followups hidden"></div>
+      </div>
+
+      <div class="ai-panel-grid">
+        <article class="ai-summary-card">
+          <h3>Summary</h3>
+          <p id="ai-summary-text" class="ai-summary-text">Insights will appear once employee data loads.</p>
+        </article>
+        <article class="ai-summary-card">
+          <h3>Suggested Actions</h3>
+          <ul id="ai-action-list" class="ai-action-list">
+            <li>Loading recommendations...</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="ai-visual-grid">
+        <article class="ai-summary-card">
+          <div class="chart-card-header">
+            <h3>Department Mix</h3>
+            <button id="export-department-chart-button" type="button" class="ai-action-button">Export PNG</button>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="department-chart" class="chart-canvas"></canvas>
+          </div>
+        </article>
+        <article class="ai-summary-card">
+          <div class="chart-card-header">
+            <h3>Manager Coverage</h3>
+            <button id="export-manager-chart-button" type="button" class="ai-action-button">Export PNG</button>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="manager-chart" class="chart-canvas"></canvas>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="grid-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Workspace Tools</p>
+          <h2>Search and maintain employee records</h2>
+        </div>
+        <p class="section-copy">Use the left pane to inspect a specific record and the right pane to create or update employee information.</p>
+      </div>
+
+      <section class="grid">
+      <article class="panel search-panel">
+        <div class="panel-heading">
+          <h2>Search by ID</h2>
+          <button type="button" class="panel-toggle-button" data-panel-toggle data-target="search-panel-body" aria-expanded="true" aria-controls="search-panel-body">Collapse</button>
+        </div>
+        <div id="search-panel-body" class="panel-body-collapsible">
+          <form id="search-form" class="stack">
+            <label for="emp-id">Employee ID</label>
+            <div class="row">
+              <input id="emp-id" name="emp-id" type="text" placeholder="e.g. EMP-0001 or 1" required>
+              <button type="submit">Search</button>
+            </div>
+          </form>
+          <div id="search-message" class="message" aria-live="polite"></div>
+          <div id="employee-card" class="employee-card hidden" aria-live="polite"></div>
+        </div>
+      </article>
+
+      <article class="panel add-panel">
+        <div class="panel-heading">
+          <h2 id="form-title">Add Employee</h2>
+          <button type="button" class="panel-toggle-button" data-panel-toggle data-target="add-panel-body" aria-expanded="true" aria-controls="add-panel-body">Collapse</button>
+        </div>
+        <div id="add-panel-body" class="panel-body-collapsible">
+          <p id="form-hint" class="subtitle panel-subtitle">Create a new employee record.</p>
+          <form id="add-form" class="stack">
+            <label for="name">Name</label>
+            <input id="name" name="name" type="text" placeholder="John Carter" required>
+
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" placeholder="john.carter@company.com" required>
+
+            <label for="salary">Salary</label>
+            <input id="salary" name="salary" type="number" min="0" step="1" placeholder="65000" required>
+
+            <label for="department">Department</label>
+            <input id="department" name="department" type="text" placeholder="Engineering" required>
+
+            <label for="manager">Manager</label>
+            <input id="manager" name="manager" type="text" placeholder="Sarah Smith" required>
+
+            <label for="geo-location">Geo Location</label>
+            <input id="geo-location" name="geo-location" type="text" placeholder="Hyderabad, India" required>
+
+            <div class="form-actions">
+              <button id="submit-button" type="submit" class="full">Add Employee</button>
+              <button id="cancel-edit-button" type="button" class="button-secondary hidden">Cancel Edit</button>
+            </div>
+          </form>
+          <div id="add-message" class="message" aria-live="polite"></div>
+        </div>
+      </article>
+
+      </section>
+
+      <div class="section-heading section-heading-compact">
+        <div>
+          <p class="eyebrow">Employee Directory</p>
+          <h2>Scan the full workforce table</h2>
+        </div>
+        <p class="section-copy">Filter, sort, and page through records without losing context from the insights above.</p>
+      </div>
+
+      <section class="grid grid-single">
+      <article class="panel details-panel full-width">
+        <h2>Employee Details</h2>
+        <p class="subtitle panel-subtitle">Use filter, sorting, and pagination to quickly scan records.</p>
+        <div id="details-message" class="message" aria-live="polite"></div>
+        <div class="details-toolbar">
+          <input id="employee-filter" type="text" placeholder="Filter by ID, name, email, department, manager or location">
+          <select id="sort-field" aria-label="Sort employees by field">
+            <option value="id">Sort: ID</option>
+            <option value="name">Sort: Name</option>
+            <option value="email">Sort: Email</option>
+            <option value="salary">Sort: Salary</option>
+            <option value="department">Sort: Department</option>
+            <option value="manager">Sort: Manager</option>
+            <option value="geo_location">Sort: Geo Location</option>
+          </select>
+          <button id="sort-direction-button" type="button" class="button-secondary">Ascending</button>
+          <button id="clear-filter-button" type="button" class="button-secondary">Clear</button>
+        </div>
+        <div class="table-wrap">
+          <table id="employees-table" class="employees-table">
+            <thead>
+              <tr>
+                <th class="sortable-column" data-sort="id" tabindex="0" role="button" aria-label="Sort by ID">ID</th>
+                <th class="sortable-column" data-sort="name" tabindex="0" role="button" aria-label="Sort by Name">Name</th>
+                <th class="sortable-column" data-sort="email" tabindex="0" role="button" aria-label="Sort by Email">Email</th>
+                <th class="sortable-column" data-sort="salary" tabindex="0" role="button" aria-label="Sort by Salary">Salary</th>
+                <th class="sortable-column" data-sort="department" tabindex="0" role="button" aria-label="Sort by Department">Department</th>
+                <th class="sortable-column" data-sort="manager" tabindex="0" role="button" aria-label="Sort by Manager">Manager</th>
+                <th class="sortable-column" data-sort="geo_location" tabindex="0" role="button" aria-label="Sort by Geo Location">Geo Location</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="employees-table-body"></tbody>
+          </table>
+        </div>
+        <div class="pagination-bar">
+          <p id="pagination-summary" class="pagination-summary">Page 1</p>
+          <div class="pagination-actions">
+            <button id="prev-page-button" type="button" class="button-secondary">Previous</button>
+            <button id="next-page-button" type="button" class="button-secondary">Next</button>
+          </div>
+        </div>
+      </article>
+      </section>
+    </section>
+  </main>
+
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <div id="employee-modal" class="modal hidden" aria-hidden="true">
+    <div id="modal-backdrop" class="modal-backdrop"></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow modal-eyebrow">Employee Record</p>
+          <h2 id="modal-title">Employee Details</h2>
+        </div>
+        <button id="close-modal-button" type="button" class="button-secondary">Close</button>
+      </div>
+      <div id="modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <button id="assistant-fab" class="assistant-fab hidden" type="button" aria-controls="floating-assistant" aria-expanded="false">
+    <span class="assistant-fab-mark">AI</span>
+    <span>AI Help</span>
+  </button>
+
+  <aside id="floating-assistant" class="floating-assistant" aria-label="Floating AI assistant">
+    <div id="floating-assistant-header" class="floating-assistant-header">
+      <div>
+        <p class="floating-assistant-kicker">Floating Assistant</p>
+        <h2>AI Help</h2>
+      </div>
+      <div class="floating-assistant-window-actions">
+        <button id="floating-assistant-minimize" type="button" class="floating-assistant-icon-button" aria-label="Minimize assistant">_</button>
+      </div>
+    </div>
+
+    <div class="floating-assistant-body">
+      <div class="floating-assistant-toolbar">
+        <label class="floating-assistant-provider-label" for="floating-assistant-provider">Assistant</label>
+        <select id="floating-assistant-provider" class="floating-assistant-provider" aria-label="Choose chatbot provider">
+          <option value="local">Local Medivra</option>
+          <option value="github">GitHub Copilot (API)</option>
+          <option value="chatgpt">ChatGPT</option>
+          <option value="gemini">Gemini</option>
+          <option value="claude">Claude</option>
+          <option value="perplexity">Perplexity</option>
+        </select>
+      </div>
+
+      <div class="floating-assistant-status-row">
+        <span class="floating-assistant-status-label">Status</span>
+        <span id="floating-assistant-status-badge" class="floating-assistant-status-badge is-checking">Checking...</span>
+      </div>
+
+      <p id="floating-assistant-provider-note" class="floating-assistant-provider-note">Local Medivra assistant replies inside this widget.</p>
+
+      <div class="floating-assistant-suggestions">
+        <button type="button" class="floating-assistant-chip" data-floating-prompt="Summarize the current workforce">Summarize workforce</button>
+        <button type="button" class="floating-assistant-chip" data-floating-prompt="Which department looks understaffed?">Hiring guidance</button>
+        <button type="button" class="floating-assistant-chip" data-floating-prompt="Draft a polite employee update email">Draft email</button>
+      </div>
+
+      <div id="floating-assistant-log" class="floating-assistant-log" aria-live="polite">
+        <article class="agent-message assistant">
+          <p class="agent-role">AI Help</p>
+          <p>Use Local Medivra or GitHub Copilot (API) for in-app answers, or switch providers to open ChatGPT, Gemini, Claude, and Perplexity in a new tab.</p>
+        </article>
+      </div>
+
+      <form id="floating-assistant-form" class="floating-assistant-form">
+        <textarea id="floating-assistant-input" class="floating-assistant-input" rows="3" placeholder="Ask a question or write a prompt for any chatbot"></textarea>
+        <div class="floating-assistant-actions">
+          <button id="floating-assistant-send" type="submit">Send</button>
+          <button id="floating-assistant-open" type="button" class="button-secondary">Open Bot</button>
+        </div>
+      </form>
+    </div>
+  </aside>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <script th:src="@{/app.js}" src="/app.js"></script>
+</body>
+</html>

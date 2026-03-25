@@ -1,0 +1,13 @@
+server:
+  port: 8081
+
+spring:
+  thymeleaf:
+    cache: false
+  datasource:
+    driver-class-name: org.sqlite.JDBC
+    url: jdbc:sqlite:employees.db
+
+logging:
+  level:
+    root: INFO
