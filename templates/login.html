@@ -13,12 +13,19 @@
   <div class="login-watermark" aria-hidden="true">Medivra</div>
   <div class="login-glow"></div>
   <div class="login-glow login-glow-secondary"></div>
+  <div class="login-glow login-glow-tertiary"></div>
 
   <main class="login-shell">
     <section class="login-intro">
       <p class="eyebrow login-kicker">Medivra Workforce Portal</p>
       <h1>Secure access to your employee operations hub.</h1>
       <p class="subtitle login-intro-copy">Manage records, search employee details, and keep people data organized in one place.</p>
+
+      <div class="login-intro-meta">
+        <span>Private Workspace</span>
+        <span>Role-based access</span>
+        <span>Audit-ready workflows</span>
+      </div>
 
       <div class="login-feature-list">
         <div class="login-feature-item">
@@ -43,39 +50,107 @@
           </div>
         </div>
       </div>
+
+      <div class="login-highlight-grid">
+        <article class="login-highlight-card">
+          <h3>Employee Lens</h3>
+          <p>Open your desk with search, profile review, and rapid updates in a single environment.</p>
+        </article>
+        <article class="login-highlight-card">
+          <h3>Insight Engine</h3>
+          <p>See workforce trends, manager coverage, and salary signals immediately after login.</p>
+        </article>
+      </div>
     </section>
 
     <section class="login-card">
-      <div class="login-card-header">
-        <div class="login-brand-chip">
-          <span class="brand-logo">M</span>
-          <span>Medivra</span>
+      <div class="login-card-shell">
+        <div class="login-card-header">
+          <div class="login-brand-chip">
+            <span class="brand-logo">M</span>
+            <span>Medivra</span>
+          </div>
+          <p class="eyebrow">Welcome Back</p>
+          <h2>Secure Employee Access</h2>
+          <p class="subtitle">Sign in to continue to Employee Desk.</p>
+          <div class="login-card-status" aria-live="polite">
+            <span class="login-status-pill is-active">Ready to sign in</span>
+            <span id="password-status-pill" class="login-status-pill">Password hidden</span>
+          </div>
         </div>
-        <p class="eyebrow">Welcome Back</p>
-        <h2>Secure Employee Access</h2>
-        <p class="subtitle">Sign in to continue to Employee Desk.</p>
-      </div>
 
-      <form method="post" class="stack login-form">
-        <label for="username">Username</label>
-        <input id="username" name="username" type="text" placeholder="Enter username" value="{{ request.form.get('username', demo_username) }}" autocomplete="username" required>
+        <form method="post" class="stack login-form">
+          <div class="login-field">
+            <label for="username">Username</label>
+            <input id="username" name="username" type="text" placeholder="Enter username" value="{{ request.form.get('username', demo_username) }}" autocomplete="username" required>
+          </div>
 
-        <label for="password">Password</label>
-        <input id="password" name="password" type="password" placeholder="Enter password" value="{{ request.form.get('password', demo_password) }}" autocomplete="current-password" required>
+          <div class="login-field">
+            <label for="password">Password</label>
+            <div class="login-password-wrap">
+              <input id="password" name="password" type="password" placeholder="Enter password" value="{{ request.form.get('password', demo_password) }}" autocomplete="current-password" required>
+              <button id="password-toggle-button" class="password-toggle-button" type="button" aria-pressed="false" aria-label="Show password">Show</button>
+            </div>
+          </div>
 
-        <button type="submit" class="full login-submit">Login</button>
-      </form>
+          <button id="login-submit-button" type="submit" class="full login-submit">Login</button>
+        </form>
 
-      {% if error_message %}
-      <p class="message error login-error">{{ error_message }}</p>
-      {% endif %}
+        {% if error_message %}
+        <p class="message error login-error">{{ error_message }}</p>
+        {% endif %}
 
-      <div class="demo-credentials">
-        <strong>Demo Credentials</strong>
-        <p>Username: {{ demo_username }}</p>
-        <p>Password: {{ demo_password }}</p>
+        <p class="login-security-note">Your session is encrypted and expires automatically after inactivity.</p>
+
+        <div class="login-trust-row">
+          <div class="login-trust-item">
+            <strong>Session Guard</strong>
+            <span>Protected route access after authentication.</span>
+          </div>
+          <div class="login-trust-item">
+            <strong>Fast Entry</strong>
+            <span>Server-rendered login with instant password visibility controls.</span>
+          </div>
+        </div>
+
+        <div class="demo-credentials">
+          <strong>Login Credentials</strong>
+          <p>Username: {{ demo_username }}</p>
+          <p>Password: {{ demo_password }}</p>
+        </div>
       </div>
     </section>
   </main>
+
+  <script>
+    (function () {
+      var passwordInput = document.getElementById('password');
+      var toggleButton = document.getElementById('password-toggle-button');
+      var passwordStatusPill = document.getElementById('password-status-pill');
+      var loginForm = document.querySelector('.login-form');
+      var loginSubmitButton = document.getElementById('login-submit-button');
+
+      if (toggleButton && passwordInput) {
+        toggleButton.addEventListener('click', function () {
+          var isPassword = passwordInput.type === 'password';
+          passwordInput.type = isPassword ? 'text' : 'password';
+          toggleButton.textContent = isPassword ? 'Hide' : 'Show';
+          toggleButton.setAttribute('aria-pressed', isPassword ? 'true' : 'false');
+          toggleButton.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+
+          if (passwordStatusPill) {
+            passwordStatusPill.textContent = isPassword ? 'Password visible' : 'Password hidden';
+            passwordStatusPill.classList.toggle('is-active', isPassword);
+          }
+        });
+      }
+
+      if (loginForm && loginSubmitButton) {
+        loginForm.addEventListener('submit', function () {
+          loginSubmitButton.textContent = 'Logging in...';
+        });
+      }
+    })();
+  </script>
 </body>
 </html>

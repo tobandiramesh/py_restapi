@@ -63,6 +63,8 @@ const floatingAssistantProviderNote = document.getElementById('floating-assistan
 const floatingAssistantStatusBadge = document.getElementById('floating-assistant-status-badge');
 const floatingAssistantOpenButton = document.getElementById('floating-assistant-open');
 const floatingAssistantMinimizeButton = document.getElementById('floating-assistant-minimize');
+const themeToggleButton = document.getElementById('theme-toggle-button');
+const panelToggleButtons = document.querySelectorAll('[data-panel-toggle]');
 
 let editingEmployeeId = null;
 let allEmployees = [];
@@ -87,6 +89,15 @@ let floatingAssistantStatusRequestId = 0;
 const PAGE_SIZE = 5;
 const FLOATING_ASSISTANT_POSITION_KEY = 'medivra-floating-assistant-position';
 const FLOATING_ASSISTANT_OPEN_KEY = 'medivra-floating-assistant-open';
+const THEME_PREFERENCE_KEY = 'medivra-theme';
+const COLLAPSIBLE_PANELS_STATE_KEY = 'medivra-collapsible-panels';
+const statAnimationState = {
+  totalEmployees: 0,
+  totalDepartments: 0,
+  averageSalary: 0,
+  managerLoad: 0,
+};
+let currentTheme = 'light';
 const FLOATING_ASSISTANT_PROVIDERS = {
   local: {
     name: 'Local Medivra',
@@ -346,6 +357,126 @@ function destroyChart(chartInstance) {
   }
 }
 
+function getChartPalette() {
+  if (currentTheme === 'dark') {
+    return {
+      department: ['rgba(70, 164, 151, 0.94)', 'rgba(126, 187, 175, 0.94)', 'rgba(166, 207, 198, 0.94)', 'rgba(214, 194, 155, 0.9)', 'rgba(234, 226, 204, 0.86)'],
+      manager: ['rgba(214, 194, 155, 0.92)', 'rgba(228, 215, 184, 0.88)', 'rgba(70, 164, 151, 0.9)', 'rgba(126, 187, 175, 0.9)', 'rgba(166, 207, 198, 0.86)'],
+    };
+  }
+
+  return {
+    department: ['rgba(217, 239, 233, 0.95)', 'rgba(190, 228, 220, 0.92)', 'rgba(157, 213, 201, 0.9)', 'rgba(118, 187, 171, 0.88)', 'rgba(242, 228, 198, 0.88)'],
+    manager: ['rgba(242, 228, 198, 0.95)', 'rgba(232, 211, 170, 0.92)', 'rgba(217, 239, 233, 0.9)', 'rgba(157, 213, 201, 0.88)', 'rgba(118, 187, 171, 0.86)'],
+  };
+}
+
+function animateValueTransition(from, to, durationMs, onFrame, onComplete) {
+  const startTime = performance.now();
+  const distance = to - from;
+
+  function step(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(1, elapsed / durationMs);
+    const eased = 1 - ((1 - progress) ** 3);
+    onFrame(from + (distance * eased));
+
+    if (progress < 1) {
+      window.requestAnimationFrame(step);
+      return;
+    }
+
+    if (typeof onComplete === 'function') {
+      onComplete();
+    }
+  }
+
+  window.requestAnimationFrame(step);
+}
+
+function setAnimatedStat(element, statKey, targetValue, formatter) {
+  if (!element) {
+    return;
+  }
+
+  const normalizedTarget = Number.isFinite(Number(targetValue)) ? Number(targetValue) : 0;
+  const startValue = Number.isFinite(statAnimationState[statKey]) ? statAnimationState[statKey] : 0;
+
+  if (startValue === normalizedTarget) {
+    element.textContent = formatter(normalizedTarget);
+    return;
+  }
+
+  animateValueTransition(
+    startValue,
+    normalizedTarget,
+    560,
+    (value) => {
+      element.textContent = formatter(value);
+    },
+    () => {
+      statAnimationState[statKey] = normalizedTarget;
+      element.textContent = formatter(normalizedTarget);
+    }
+  );
+}
+
+function applyTheme(theme) {
+  const normalizedTheme = theme === 'dark' ? 'dark' : 'light';
+  currentTheme = normalizedTheme;
+  document.body.setAttribute('data-theme', normalizedTheme);
+
+  if (themeToggleButton) {
+    themeToggleButton.textContent = normalizedTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
+    themeToggleButton.setAttribute('aria-pressed', normalizedTheme === 'dark' ? 'true' : 'false');
+    themeToggleButton.setAttribute('title', normalizedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+  }
+}
+
+function initializeTheme() {
+  const savedTheme = window.localStorage.getItem(THEME_PREFERENCE_KEY);
+  const preferredDarkMode = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  applyTheme(savedTheme || (preferredDarkMode ? 'dark' : 'light'));
+}
+
+function setupCollapsiblePanels() {
+  let panelState = {};
+
+  try {
+    panelState = JSON.parse(window.localStorage.getItem(COLLAPSIBLE_PANELS_STATE_KEY) || '{}');
+  } catch (_error) {
+    panelState = {};
+  }
+
+  panelToggleButtons.forEach((button) => {
+    const targetId = button.getAttribute('data-target');
+    if (!targetId) {
+      return;
+    }
+
+    const targetPanel = document.getElementById(targetId);
+    if (!targetPanel) {
+      return;
+    }
+
+    const setPanelExpandedState = (isExpanded) => {
+      targetPanel.classList.toggle('hidden', !isExpanded);
+      button.textContent = isExpanded ? 'Collapse' : 'Expand';
+      button.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    };
+
+    const isInitiallyExpanded = panelState[targetId] !== false;
+    setPanelExpandedState(isInitiallyExpanded);
+
+    button.addEventListener('click', () => {
+      const shouldExpand = targetPanel.classList.contains('hidden');
+      setPanelExpandedState(shouldExpand);
+      panelState[targetId] = shouldExpand;
+      window.localStorage.setItem(COLLAPSIBLE_PANELS_STATE_KEY, JSON.stringify(panelState));
+    });
+  });
+}
+
 function renderChart(canvas, chartInstance, countMap, emptyMessage, label, colors) {
   const entries = Object.entries(countMap).sort((left, right) => right[1] - left[1]).slice(0, 5);
 
@@ -374,6 +505,10 @@ function renderChart(canvas, chartInstance, countMap, emptyMessage, label, color
 
   destroyChart(chartInstance);
 
+  const axisTickColor = currentTheme === 'dark' ? 'rgba(221, 237, 233, 0.84)' : 'rgba(236, 255, 251, 0.82)';
+  const axisGridColor = currentTheme === 'dark' ? 'rgba(186, 215, 209, 0.18)' : 'rgba(255, 255, 255, 0.1)';
+  const tooltipBackground = currentTheme === 'dark' ? 'rgba(6, 27, 24, 0.95)' : 'rgba(12, 28, 26, 0.92)';
+
   return new Chart(canvas, {
     type: 'bar',
     data: {
@@ -394,20 +529,22 @@ function renderChart(canvas, chartInstance, countMap, emptyMessage, label, color
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: 'rgba(12, 28, 26, 0.92)',
+          backgroundColor: tooltipBackground,
           titleColor: '#ffffff',
           bodyColor: '#ecfffb',
+          borderWidth: 1,
+          borderColor: 'rgba(255, 255, 255, 0.16)',
         },
       },
       scales: {
         x: {
           grid: { display: false },
-          ticks: { color: 'rgba(245, 255, 252, 0.84)', maxRotation: 0, minRotation: 0 },
+          ticks: { color: axisTickColor, maxRotation: 0, minRotation: 0 },
         },
         y: {
           beginAtZero: true,
-          ticks: { precision: 0, color: 'rgba(245, 255, 252, 0.72)' },
-          grid: { color: 'rgba(255, 255, 255, 0.1)' },
+          ticks: { precision: 0, color: axisTickColor },
+          grid: { color: axisGridColor },
         },
       },
     },
@@ -896,10 +1033,10 @@ async function applyAiQuery(rawQuery) {
 }
 
 function renderInsightsFromPayload(payload) {
-  totalEmployeesStat.textContent = String(payload.visible_count || 0);
-  totalDepartmentsStat.textContent = String(payload.department_count || 0);
-  averageSalaryStat.textContent = formatCurrency(Number(payload.average_salary || 0));
-  managerLoadStat.textContent = payload.top_manager ? String(payload.top_manager.count) : '0';
+  setAnimatedStat(totalEmployeesStat, 'totalEmployees', payload.visible_count || 0, (value) => String(Math.round(value)));
+  setAnimatedStat(totalDepartmentsStat, 'totalDepartments', payload.department_count || 0, (value) => String(Math.round(value)));
+  setAnimatedStat(averageSalaryStat, 'averageSalary', payload.average_salary || 0, (value) => formatCurrency(value));
+  setAnimatedStat(managerLoadStat, 'managerLoad', payload.top_manager ? payload.top_manager.count : 0, (value) => String(Math.round(value)));
   managerNoteStat.textContent = payload.top_manager
     ? `${payload.top_manager.name} manages the largest visible team`
     : 'No visible employee records';
@@ -912,13 +1049,15 @@ function renderInsightsFromPayload(payload) {
   aiSummaryText.textContent = latestInsightSummary;
   aiActionList.innerHTML = latestInsightActions.map((action) => `<li>${action}</li>`).join('');
 
+  const chartPalette = getChartPalette();
+
   departmentChartInstance = renderChart(
     departmentChartCanvas,
     departmentChartInstance,
     payload.distributions?.departments || {},
     'No department data available.',
     'Departments',
-    ['rgba(217, 239, 233, 0.95)', 'rgba(190, 228, 220, 0.92)', 'rgba(157, 213, 201, 0.9)', 'rgba(118, 187, 171, 0.88)', 'rgba(242, 228, 198, 0.88)']
+    chartPalette.department
   );
 
   managerChartInstance = renderChart(
@@ -927,7 +1066,7 @@ function renderInsightsFromPayload(payload) {
     payload.distributions?.managers || {},
     'No manager data available.',
     'Managers',
-    ['rgba(242, 228, 198, 0.95)', 'rgba(232, 211, 170, 0.92)', 'rgba(217, 239, 233, 0.9)', 'rgba(157, 213, 201, 0.88)', 'rgba(118, 187, 171, 0.86)']
+    chartPalette.manager
   );
 }
 
@@ -949,10 +1088,10 @@ function updateInsightsFallback(employees) {
   const averageSalary = employees.length ? Math.round(salaryTotal / employees.length) : 0;
   const topManager = Object.entries(managerCounts).sort((a, b) => b[1] - a[1])[0] || null;
 
-  totalEmployeesStat.textContent = String(employees.length);
-  totalDepartmentsStat.textContent = String(Object.keys(departmentCounts).length);
-  averageSalaryStat.textContent = formatCurrency(averageSalary);
-  managerLoadStat.textContent = topManager ? String(topManager[1]) : '0';
+  setAnimatedStat(totalEmployeesStat, 'totalEmployees', employees.length, (value) => String(Math.round(value)));
+  setAnimatedStat(totalDepartmentsStat, 'totalDepartments', Object.keys(departmentCounts).length, (value) => String(Math.round(value)));
+  setAnimatedStat(averageSalaryStat, 'averageSalary', averageSalary, (value) => formatCurrency(value));
+  setAnimatedStat(managerLoadStat, 'managerLoad', topManager ? topManager[1] : 0, (value) => String(Math.round(value)));
   managerNoteStat.textContent = topManager ? `${topManager[0]} manages the largest visible team` : 'No visible employee records';
 
   latestInsightSummary = employees.length
@@ -966,13 +1105,15 @@ function updateInsightsFallback(employees) {
   aiSummaryText.textContent = latestInsightSummary;
   aiActionList.innerHTML = latestInsightActions.map((action) => `<li>${action}</li>`).join('');
 
+  const chartPalette = getChartPalette();
+
   departmentChartInstance = renderChart(
     departmentChartCanvas,
     departmentChartInstance,
     departmentCounts,
     'No department data available.',
     'Departments',
-    ['rgba(217, 239, 233, 0.95)', 'rgba(190, 228, 220, 0.92)', 'rgba(157, 213, 201, 0.9)', 'rgba(118, 187, 171, 0.88)', 'rgba(242, 228, 198, 0.88)']
+    chartPalette.department
   );
 
   managerChartInstance = renderChart(
@@ -981,7 +1122,7 @@ function updateInsightsFallback(employees) {
     managerCounts,
     'No manager data available.',
     'Managers',
-    ['rgba(242, 228, 198, 0.95)', 'rgba(232, 211, 170, 0.92)', 'rgba(217, 239, 233, 0.9)', 'rgba(157, 213, 201, 0.88)', 'rgba(118, 187, 171, 0.86)']
+    chartPalette.manager
   );
 }
 
@@ -1216,19 +1357,34 @@ function renderEmployeesTable(employees) {
 
   employeesTableBody.innerHTML = employees
     .map((employee) => `
-      <tr>
-        <td><span class="id-badge">${formatEmployeeId(employee.id)}</span></td>
-        <td title="${employee.name}">${employee.name}</td>
-        <td class="truncate-cell" title="${employee.email}">${employee.email}</td>
-        <td><span class="salary-pill">${formatCurrency(Number(employee.salary))}</span></td>
-        <td title="${employee.department}">${employee.department}</td>
-        <td title="${employee.manager}">${employee.manager}</td>
-        <td class="truncate-cell" title="${employee.geo_location}">${employee.geo_location}</td>
-        <td>
+      <tr class="employee-row-card">
+        <td data-label="ID"><span class="id-badge">${formatEmployeeId(employee.id)}</span></td>
+        <td data-label="Name" title="${employee.name}">${employee.name}</td>
+        <td data-label="Email" class="truncate-cell" title="${employee.email}">${employee.email}</td>
+        <td data-label="Salary"><span class="salary-pill">${formatCurrency(Number(employee.salary))}</span></td>
+        <td data-label="Department" title="${employee.department}">${employee.department}</td>
+        <td data-label="Manager" title="${employee.manager}">${employee.manager}</td>
+        <td data-label="Geo Location" class="truncate-cell" title="${employee.geo_location}">${employee.geo_location}</td>
+        <td data-label="Actions">
           <div class="row-actions row-actions-inline">
-            <button type="button" class="table-button" data-action="view" data-id="${employee.id}">View</button>
-            <button type="button" class="table-button button-secondary" data-action="edit" data-id="${employee.id}">Modify</button>
-            <button type="button" class="table-button button-danger" data-action="delete" data-id="${employee.id}">Delete</button>
+            <button type="button" class="table-button table-icon-button" data-action="view" data-id="${employee.id}" title="View employee details" aria-label="View employee details">
+              <span class="table-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M12 5C6.5 5 2.1 8.3 1 12c1.1 3.7 5.5 7 11 7s9.9-3.3 11-7c-1.1-3.7-5.5-7-11-7Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z"/></svg>
+              </span>
+              <span class="table-button-text">View</span>
+            </button>
+            <button type="button" class="table-button table-icon-button button-secondary" data-action="edit" data-id="${employee.id}" title="Modify employee" aria-label="Modify employee">
+              <span class="table-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M3 17.3V21h3.7L18 9.7 14.3 6 3 17.3Zm17.7-10.1a1 1 0 0 0 0-1.4l-2.5-2.5a1 1 0 0 0-1.4 0L15 5l3.7 3.7 2-1.8Z"/></svg>
+              </span>
+              <span class="table-button-text">Modify</span>
+            </button>
+            <button type="button" class="table-button table-icon-button button-danger" data-action="delete" data-id="${employee.id}" title="Delete employee" aria-label="Delete employee">
+              <span class="table-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 7h2v8h-2v-8Zm4 0h2v8h-2v-8ZM7 10h2v8H7v-8Z"/></svg>
+              </span>
+              <span class="table-button-text">Delete</span>
+            </button>
           </div>
         </td>
       </tr>
@@ -1599,6 +1755,17 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
+themeToggleButton?.addEventListener('click', () => {
+  const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  applyTheme(nextTheme);
+  window.localStorage.setItem(THEME_PREFERENCE_KEY, nextTheme);
+
+  if (allEmployees.length) {
+    refreshInsights(getFilteredEmployees());
+  }
+});
+
+initializeTheme();
 setFormModeForAdd();
 sortFieldSelect.value = currentSortField;
 updateSortDirectionButton();
@@ -1606,4 +1773,5 @@ updateVoiceReplyToggle();
 updateAssistantModeUI();
 setupVoiceFeatures();
 setupFloatingAssistant();
+setupCollapsiblePanels();
 loadEmployees();

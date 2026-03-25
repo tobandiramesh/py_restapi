@@ -9,8 +9,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
+<body class="dashboard-body">
   <div class="background-glow"></div>
+  <div class="background-grid"></div>
 
   <nav class="topbar">
     <div class="topbar-brand">
@@ -19,18 +20,44 @@
     </div>
     <div class="topbar-actions">
       <span class="topbar-tagline">People &amp; Culture Platform</span>
+      <button id="theme-toggle-button" type="button" class="topbar-theme-toggle" aria-pressed="false" title="Switch theme">Dark Mode</button>
       <a class="logout-link" href="{{ url_for('logout') }}">Logout</a>
     </div>
   </nav>
 
   <main class="page">
-    <header class="hero">
-      <p class="eyebrow">Employee Management &mdash; Medivra</p>
-      <h1>Employee Desk</h1>
-      <p class="subtitle">Search employee details by ID and add new employee records in one place.</p>
-    </header>
+    <section class="dashboard-hero-shell">
+      <header class="hero">
+        <p class="eyebrow">Employee Management &mdash; Medivra</p>
+        <div class="hero-layout">
+          <div class="hero-copy">
+            <h1>Employee Desk</h1>
+            <p class="subtitle hero-subtitle">Search employee details, monitor workforce signals, and act on records from a single command center.</p>
+            <div class="hero-tags" aria-label="Key capabilities">
+              <span class="hero-tag">Live workforce insights</span>
+              <span class="hero-tag">Editable employee records</span>
+              <span class="hero-tag">Built-in AI assistance</span>
+            </div>
+          </div>
+          <aside class="hero-spotlight" aria-label="Workspace overview">
+            <p class="hero-spotlight-kicker">Operations Snapshot</p>
+            <h2>One view for search, changes, and team signals.</h2>
+            <p>Review workforce distribution, update records, and move into analysis without context switching between tools.</p>
+            <div class="hero-spotlight-metrics">
+              <div>
+                <strong>Fast</strong>
+                <span>Search, sort, and paginate instantly.</span>
+              </div>
+              <div>
+                <strong>Practical</strong>
+                <span>Act on records directly from the same page.</span>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </header>
 
-    <section class="overview-grid">
+      <section class="overview-grid">
       <article class="overview-card stat-card">
         <span class="overview-label">Total Employees</span>
         <strong id="stat-total-employees" class="overview-value">0</strong>
@@ -54,6 +81,7 @@
         <strong id="stat-manager-load" class="overview-value">0</strong>
         <p id="stat-manager-note" class="overview-note">Waiting for workforce data</p>
       </article>
+      </section>
     </section>
 
     <section class="ai-panel panel">
@@ -146,50 +174,80 @@
       </div>
     </section>
 
-    <section class="grid">
+    <section class="grid-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Workspace Tools</p>
+          <h2>Search and maintain employee records</h2>
+        </div>
+        <p class="section-copy">Use the left pane to inspect a specific record and the right pane to create or update employee information.</p>
+      </div>
+
+      <section class="grid">
       <article class="panel search-panel">
-        <h2>Search by ID</h2>
-        <form id="search-form" class="stack">
-          <label for="emp-id">Employee ID</label>
-          <div class="row">
-            <input id="emp-id" name="emp-id" type="text" placeholder="e.g. EMP-0001 or 1" required>
-            <button type="submit">Search</button>
-          </div>
-        </form>
-        <div id="search-message" class="message" aria-live="polite"></div>
-        <div id="employee-card" class="employee-card hidden" aria-live="polite"></div>
+        <div class="panel-heading">
+          <h2>Search by ID</h2>
+          <button type="button" class="panel-toggle-button" data-panel-toggle data-target="search-panel-body" aria-expanded="true" aria-controls="search-panel-body">Collapse</button>
+        </div>
+        <div id="search-panel-body" class="panel-body-collapsible">
+          <form id="search-form" class="stack">
+            <label for="emp-id">Employee ID</label>
+            <div class="row">
+              <input id="emp-id" name="emp-id" type="text" placeholder="e.g. EMP-0001 or 1" required>
+              <button type="submit">Search</button>
+            </div>
+          </form>
+          <div id="search-message" class="message" aria-live="polite"></div>
+          <div id="employee-card" class="employee-card hidden" aria-live="polite"></div>
+        </div>
       </article>
 
       <article class="panel add-panel">
-        <h2 id="form-title">Add Employee</h2>
-        <p id="form-hint" class="subtitle panel-subtitle">Create a new employee record.</p>
-        <form id="add-form" class="stack">
-          <label for="name">Name</label>
-          <input id="name" name="name" type="text" placeholder="John Carter" required>
+        <div class="panel-heading">
+          <h2 id="form-title">Add Employee</h2>
+          <button type="button" class="panel-toggle-button" data-panel-toggle data-target="add-panel-body" aria-expanded="true" aria-controls="add-panel-body">Collapse</button>
+        </div>
+        <div id="add-panel-body" class="panel-body-collapsible">
+          <p id="form-hint" class="subtitle panel-subtitle">Create a new employee record.</p>
+          <form id="add-form" class="stack">
+            <label for="name">Name</label>
+            <input id="name" name="name" type="text" placeholder="John Carter" required>
 
-          <label for="email">Email</label>
-          <input id="email" name="email" type="email" placeholder="john.carter@company.com" required>
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" placeholder="john.carter@company.com" required>
 
-          <label for="salary">Salary</label>
-          <input id="salary" name="salary" type="number" min="0" step="1" placeholder="65000" required>
+            <label for="salary">Salary</label>
+            <input id="salary" name="salary" type="number" min="0" step="1" placeholder="65000" required>
 
-          <label for="department">Department</label>
-          <input id="department" name="department" type="text" placeholder="Engineering" required>
+            <label for="department">Department</label>
+            <input id="department" name="department" type="text" placeholder="Engineering" required>
 
-          <label for="manager">Manager</label>
-          <input id="manager" name="manager" type="text" placeholder="Sarah Smith" required>
+            <label for="manager">Manager</label>
+            <input id="manager" name="manager" type="text" placeholder="Sarah Smith" required>
 
-          <label for="geo-location">Geo Location</label>
-          <input id="geo-location" name="geo-location" type="text" placeholder="Hyderabad, India" required>
+            <label for="geo-location">Geo Location</label>
+            <input id="geo-location" name="geo-location" type="text" placeholder="Hyderabad, India" required>
 
-          <div class="form-actions">
-            <button id="submit-button" type="submit" class="full">Add Employee</button>
-            <button id="cancel-edit-button" type="button" class="button-secondary hidden">Cancel Edit</button>
-          </div>
-        </form>
-        <div id="add-message" class="message" aria-live="polite"></div>
+            <div class="form-actions">
+              <button id="submit-button" type="submit" class="full">Add Employee</button>
+              <button id="cancel-edit-button" type="button" class="button-secondary hidden">Cancel Edit</button>
+            </div>
+          </form>
+          <div id="add-message" class="message" aria-live="polite"></div>
+        </div>
       </article>
 
+      </section>
+
+      <div class="section-heading section-heading-compact">
+        <div>
+          <p class="eyebrow">Employee Directory</p>
+          <h2>Scan the full workforce table</h2>
+        </div>
+        <p class="section-copy">Filter, sort, and page through records without losing context from the insights above.</p>
+      </div>
+
+      <section class="grid grid-single">
       <article class="panel details-panel full-width">
         <h2>Employee Details</h2>
         <p class="subtitle panel-subtitle">Use filter, sorting, and pagination to quickly scan records.</p>
@@ -233,6 +291,7 @@
           </div>
         </div>
       </article>
+      </section>
     </section>
   </main>
 
