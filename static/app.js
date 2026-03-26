@@ -679,17 +679,55 @@ function appendFloatingAssistantMessage(role, text) {
 
   const message = document.createElement('article');
   message.className = `agent-message ${role}`;
+  
+  // Process text: escape HTML, convert newlines, and extract Try: examples
+  const lines = text.split('\n');
+  let htmlContent = '';
+  const tryExamples = [];
+  
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('Try:')) {
+      const exampleText = trimmed.replace('Try:', '').trim();
+      tryExamples.push(exampleText);
+      htmlContent += `<span style="color: #3fa595; font-weight: 600; cursor: pointer; text-decoration: underline;" class="try-example" data-prompt="${escapeHtml(exampleText)}">${escapeHtml(trimmed)}</span><br>`;
+    } else {
+      htmlContent += escapeHtml(line) + '<br>';
+    }
+  });
+  
   message.innerHTML = `
     <p class="agent-role">${role === 'assistant' ? 'AI Help' : 'You'}</p>
-    <p>${text}</p>
+    <p style="white-space: pre-wrap; word-wrap: break-word;">${htmlContent}</p>
   `;
 
   floatingAssistantLog.appendChild(message);
+  
+  // Add click handlers to Try: examples
+  message.querySelectorAll('.try-example').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const prompt = btn.dataset.prompt;
+      floatingAssistantInput.value = prompt;
+      sendFloatingAssistantMessage();
+    });
+  });
+  
   floatingAssistantLog.scrollTop = floatingAssistantLog.scrollHeight;
 
   if (role === 'assistant') {
     speakAssistantReply(text);
   }
+}
+
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
 }
 
 function setFloatingAssistantOpen(isOpen) {

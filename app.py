@@ -293,10 +293,61 @@ def query_local_chatbot(prompt):
         )
 
     if any(keyword in prompt_lower for keyword in ["help", "what can you do", "capabilities"]):
-        return (
-            "I can summarize workforce data, analyze salaries, compare departments and managers, "
-            "answer general questions, and help with drafting text."
-        )
+        help_text = """
+📋 LOCAL MEDIVRA PATTERN GUIDE
+
+🎯 GREETING
+Patterns: "hello", "hi", "hey", "how are you"
+Try: hello
+Returns: Employee count and general greeting
+
+❓ HELP/CAPABILITIES
+Patterns: "help", "what can you do", "capabilities"
+Returns: Lists available functions
+
+📊 SUMMARY/INSIGHTS
+Patterns: "summary", "summarize", "overview", "insight", "insights"
+Try: summary
+Returns: Employee count, departments, average salary, top department/manager, highest paid employee
+
+🏢 DEPARTMENT ANALYSIS
+Patterns: Any department name (e.g., "Engineering", "Marketing", "Product")
+Try: Engineering team
+Returns: Department headcount and average salary
+
+👔 MANAGER ANALYSIS
+Patterns: Any manager name (e.g., "Sarah Smith", "Michael Brown")
+Try: manager Sarah Smith
+Returns: Direct reports count and team preview
+
+💰 SALARY RANGE
+Patterns: "between/from $X and/to $Y" (e.g., "between 50000 and 100000")
+Try: between 70000 and 100000
+Returns: Count of employees in salary range
+
+📈 SALARY ABOVE THRESHOLD
+Patterns: "above/over/greater than/more than $X"
+Try: salary above 80000
+Returns: Count of employees above threshold
+
+📉 SALARY BELOW THRESHOLD
+Patterns: "below/under/less than $X"
+Try: salary below 75000
+Returns: Count of employees below threshold
+
+👋 POLITE CLOSING
+Patterns: "thanks", "thank you", "goodbye", "bye"
+Try: thanks
+Returns: Acknowledgment
+
+🌤️ WEATHER QUERIES
+Patterns: "weather", "temperature", "forecast", "rain", "humidity"
+Returns: Not available; redirects to employee analytics
+
+ℹ️ DEFAULT BEHAVIOR
+For unrelated queries, I'll forward to GitHub Copilot for broader assistance.
+        """
+        return help_text.strip()
 
     if any(keyword in prompt_lower for keyword in ["summary", "summarize", "overview", "insight", "insights"]):
         if not employees:
@@ -684,6 +735,49 @@ def ai_chat():
             "message": "Prompt is required.",
             "timestamp": datetime.now().isoformat()
         }), 400
+
+    # Check if Local Medivra query is related to known patterns
+    if provider == "local":
+        prompt_lower = prompt.lower()
+        
+        # Stricter: only keep these specific workforce patterns local
+        local_only_patterns = [
+            # Greetings
+            r"\b(hello|hi|hey|how are you)\b",
+            # Help/capabilities
+            r"\b(help|what can you do|capabilities)\b",
+            # Summary/insights
+            r"\b(summary|summarize|overview|insight|insights)\b",
+            # Salary queries (specific patterns)
+            r"\b(salary|between|from|above|over|greater than|more than|below|under|less than)\b.*(\d+)",
+            # Weather
+            r"\b(weather|temperature|forecast|rain|humidity)\b",
+            # Closing
+            r"\b(thanks|thank you|goodbye|bye)\b",
+            # Specific workforce department/manager names
+            r"\b(engineering|marketing|product|sales|support|hr)\b",
+            r"\b(department|manager|employee|employees|workforce)\b",
+            # Location queries with specific context
+            r"\b(location|based in|from)\b",
+        ]
+        
+        is_local_query = any(re.search(pattern, prompt_lower) for pattern in local_only_patterns)
+        
+        # If no local patterns matched, route to GitHub Copilot
+        if not is_local_query:
+            try:
+                result_data = query_github_copilot(prompt)
+                return jsonify({
+                    "status": "success",
+                    "data": result_data,
+                    "timestamp": datetime.now().isoformat()
+                }), 200
+            except RuntimeError as exc:
+                return jsonify({
+                    "status": "error",
+                    "message": str(exc),
+                    "timestamp": datetime.now().isoformat()
+                }), 503
 
     try:
         if provider in {"github", "copilot", "github-copilot"}:
